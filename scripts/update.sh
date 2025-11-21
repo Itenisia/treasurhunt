@@ -113,8 +113,7 @@ echo "--- Désactivation du mode maintenance ---"
 rm -f "$MAINTENANCE_FILE"
 
 # --- Redémarrage des services ---
-echo "--- Redémarrage de Nginx et Gunicorn ---"
-sudo systemctl restart nginx
+echo "--- Redémarrage de Gunicorn ---"
 sudo systemctl reload-or-restart gunicorn
 
 # Vérification du statut du service après redémarrage

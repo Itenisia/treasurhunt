@@ -27,6 +27,7 @@ class Step(models.Model):
     clue_text = models.TextField("Indice suivant", help_text="Indice révélé quand on scanne cette étape (pour trouver la suivante)")
     secret_token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     qr_code = models.ImageField(upload_to='qr_codes/', blank=True, null=True)
+    first_discovered_at = models.DateTimeField("Découvert le", null=True, blank=True, help_text="Date de la première découverte par un joueur")
 
     class Meta:
         ordering = ['order']
