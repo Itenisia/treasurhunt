@@ -91,7 +91,7 @@ fi
 # --- Migrations et statiques ---
 echo "--- Application des migrations et collecte des statiques ---"
 "$VENV_DIR"/bin/python manage.py migrate
-"$VENV_DIR"/bin/python manage.py collectstatic --noinput --clear
+sudo "$VENV_DIR"/bin/python manage.py collectstatic --noinput --clear
 
 # --- Permissions ---
 echo "--- Ajustement des permissions ---"
