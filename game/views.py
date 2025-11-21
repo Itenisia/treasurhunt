@@ -3,12 +3,12 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils import timezone
 from django.contrib import messages
 from django.db.models import Sum
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from django.contrib.auth.forms import UserCreationForm
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.views import generic
 from .models import Hunt, Step, PlayerProgress, PlayerStep
 
@@ -195,3 +195,7 @@ def generate_qr_pdf(request, hunt_id):
     p.showPage()
     p.save()
     return response
+
+def custom_page_not_found_view(request, exception):
+    """Vue personnalisée pour les erreurs 404 qui redirige vers l'accueil."""
+    return HttpResponseRedirect(reverse('game:home'))

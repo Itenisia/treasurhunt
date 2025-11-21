@@ -1,9 +1,13 @@
 import uuid
 import qrcode
 from io import BytesIO
+from urllib.parse import urljoin
+
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import models
 from django.contrib.auth.models import User
+from django.urls import reverse
 
 class Hunt(models.Model):
     """Une chasse au trésor (parcours)."""
@@ -33,7 +37,9 @@ class Step(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.qr_code:
-            data = f"/game/scan/{self.secret_token}/"
+            relative_path = reverse('game:scan_qr', args=[self.secret_token])
+            base_url = getattr(settings, 'SITE_BASE_URL', '').rstrip('/')
+            data = urljoin(f"{base_url}/", relative_path.lstrip('/')) if base_url else relative_path
             qr = qrcode.make(data)
             buffer = BytesIO()
             qr.save(buffer, format='PNG')

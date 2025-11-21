@@ -31,10 +31,11 @@ echo "--- Début du déploiement pour $DOMAIN_NAME ---"
 echo "--- Utilisateur admin: $ADMIN_USER, Utilisateur web: $WEB_USER ---"
 
 # 1. Installation des dépendances système
+'''
 echo "--- Installation des paquets système ---"
 apt update
 apt install -y python3-venv python3-dev nginx curl git
-
+'''
 # 2. Configuration des utilisateurs et permissions
 echo "--- Configuration des utilisateurs et permissions ---"
 # Crée le répertoire projet et définit les propriétaires

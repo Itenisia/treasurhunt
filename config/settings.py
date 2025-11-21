@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -122,6 +123,9 @@ STATIC_URL = 'static/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Base URL utilisée lors de la génération d'URL absolues (ex: QR codes)
+SITE_BASE_URL = os.environ.get('SITE_BASE_URL', 'http://localhost:8000').rstrip('/')
 
 # Security settings
 # Set these to True in production

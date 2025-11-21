@@ -20,8 +20,111 @@
                     <a href="{% url 'game:leaderboard' progress.hunt.id %}" class="btn btn-outline-secondary">Voir le
                         classement</a>
                 </div>
+
+                <hr class="my-4">
+                <div class="text-start">
+                    <h5 class="mb-3">Scanner un QR Code</h5>
+                    <p class="text-muted small">Activez la caméra puis pointez vers le QR Code pour valider l'étape.</p>
+                    <div class="d-flex gap-2 mb-2">
+                        <button id="qr-start" class="btn btn-dark btn-sm">Activer la caméra</button>
+                        <button id="qr-stop" class="btn btn-outline-secondary btn-sm d-none">Arrêter</button>
+                    </div>
+                    <div id="qr-reader" class="rounded border" style="width:100%;max-width:480px;margin:auto;"></div>
+                    <div id="qr-status" class="text-muted small mt-2"></div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://unpkg.com/html5-qrcode" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const startBtn = document.getElementById('qr-start');
+    const stopBtn = document.getElementById('qr-stop');
+    const statusEl = document.getElementById('qr-status');
+    const readerContainerId = 'qr-reader';
+    let scanner = null;
+
+    const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
+
+    const formatStatus = (text, isError = false) => {
+        statusEl.textContent = text;
+        statusEl.classList.toggle('text-danger', isError);
+    };
+
+    const extractToken = (raw) => {
+        try {
+            const url = new URL(raw);
+            const matchFromPath = url.pathname.match(uuidRegex);
+            if (matchFromPath) return matchFromPath[0];
+        } catch (_) {
+            // Not a full URL, fall back to regex on raw text
+        }
+        const match = raw.match(uuidRegex);
+        return match ? match[0] : null;
+    };
+
+    const stopScanner = async () => {
+        if (!scanner) return;
+        try {
+            await scanner.stop();
+        } catch (e) {
+            // ignore stop errors
+        }
+        scanner.clear();
+        scanner = null;
+        startBtn.classList.remove('d-none');
+        stopBtn.classList.add('d-none');
+        formatStatus('Caméra arrêtée.');
+    };
+
+    const onScanSuccess = async (decodedText) => {
+        const token = extractToken(decodedText);
+        if (!token) {
+            formatStatus("QR détecté mais format inattendu.", true);
+            return;
+        }
+        formatStatus("QR détecté, redirection en cours...");
+        await stopScanner();
+        window.location.href = `/game/scan/${token}/`;
+    };
+
+    const onScanFailure = (err) => {
+        // Ignorer les erreurs fréquentes du scanner pour éviter le spam de logs
+        if (typeof err === 'string' && err.toLowerCase().includes('not found')) {
+            return;
+        }
+    };
+
+    const startScanner = () => {
+        if (scanner) return;
+        if (!window.Html5Qrcode) {
+            formatStatus("Bibliothèque de scan non chargée.", true);
+            return;
+        }
+        scanner = new Html5Qrcode(readerContainerId);
+        scanner.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: 250 },
+            onScanSuccess,
+            onScanFailure
+        ).then(() => {
+            startBtn.classList.add('d-none');
+            stopBtn.classList.remove('d-none');
+            formatStatus("Caméra active. Scannez le QR Code.");
+        }).catch((err) => {
+            scanner = null;
+            formatStatus("Impossible d'accéder à la caméra. Vérifiez les permissions.", true);
+            console.error(err);
+        });
+    };
+
+    startBtn.addEventListener('click', startScanner);
+    stopBtn.addEventListener('click', stopScanner);
+    window.addEventListener('beforeunload', stopScanner);
+});
+</script>
 {% endblock %}
