@@ -91,7 +91,7 @@ fi
 # --- Migrations et statiques ---
 echo "--- Application des migrations et collecte des statiques ---"
 "$VENV_DIR"/bin/python manage.py migrate
-"$VENV_DIR"/bin/python manage.py collectstatic --noinput
+"$VENV_DIR"/bin/python manage.py collectstatic --noinput --clear
 
 # --- Permissions ---
 echo "--- Ajustement des permissions ---"
@@ -112,8 +112,9 @@ fi
 echo "--- Désactivation du mode maintenance ---"
 rm -f "$MAINTENANCE_FILE"
 
-# --- Redémarrage du service ---
-echo "--- Redémarrage de Gunicorn ---"
+# --- Redémarrage des services ---
+echo "--- Redémarrage de Nginx et Gunicorn ---"
+sudo systemctl restart nginx
 sudo systemctl reload-or-restart gunicorn
 
 # Vérification du statut du service après redémarrage
