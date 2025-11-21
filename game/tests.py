@@ -3,11 +3,13 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from .models import Hunt, Step, PlayerProgress, PlayerStep
+from openpyxl import Workbook
 
 
 class TreasureHuntFlowTests(TestCase):
@@ -142,3 +144,21 @@ class TreasureHuntFlowTests(TestCase):
         expected_url = f"https://game.laviedesza.fr{reverse('game:scan_qr', args=[step.secret_token])}"
         self.assertEqual(capture.get("data"), expected_url)
         self.assertTrue(step.qr_code.name)
+
+    def test_import_hunt_from_xlsx(self):
+        with TemporaryDirectory() as tmp:
+            path = f"{tmp}/hunt.xlsx"
+            wb = Workbook()
+            ws = wb.active
+            ws.append(["Import Hunt", "Description import", "First clue"])
+            ws.append([1, "Spot A", "Go to B"])
+            ws.append([2, "Spot B", "Go to C"])
+            wb.save(path)
+
+            call_command("import_hunt_xlsx", path)
+
+        hunt = Hunt.objects.get(title="Import Hunt")
+        steps = list(hunt.steps.order_by("order"))
+        self.assertEqual(len(steps), 2)
+        self.assertEqual(steps[0].name, "Spot A")
+        self.assertEqual(steps[1].clue_text, "Go to C")
