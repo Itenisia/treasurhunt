@@ -19,3 +19,5 @@ env/
 # IDE
 .vscode/
 .idea/
+pourinfo/biere.conf
+pourinfo/settings.py

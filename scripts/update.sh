@@ -99,9 +99,9 @@ echo "--- Ajustement des permissions ---"
 mkdir -p "$PROJECT_DIR/media/"
 sudo chown -R "$WEB_USER":"$WEB_GROUP" "$PROJECT_DIR/media/"
 # Assurer que les fichiers statiques sont lisibles par le serveur web
-if [ -d "$PROJECT_DIR/staticfiles" ]; then
-    sudo chown -R "$WEB_USER":"$WEB_GROUP" "$PROJECT_DIR/staticfiles/"
-    sudo chmod -R 755 "$PROJECT_DIR/staticfiles/"
+if [ -d "$PROJECT_DIR/static_collected" ]; then
+    sudo chown -R "$WEB_USER":"$WEB_GROUP" "$PROJECT_DIR/static_collected/"
+    sudo chmod -R 755 "$PROJECT_DIR/static_collected/"
 fi
 if [ -f "$DB_FILE" ]; then
     sudo chown "$WEB_USER":"$WEB_GROUP" "$DB_FILE"

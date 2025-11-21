@@ -129,7 +129,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = BASE_DIR / 'static_collected'
 
 # Base URL utilisée lors de la génération d'URL absolues (ex: QR codes)
 SITE_BASE_URL = os.environ.get('SITE_BASE_URL', 'http://localhost:8000').rstrip('/')
