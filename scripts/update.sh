@@ -98,6 +98,11 @@ echo "--- Ajustement des permissions ---"
 # Créer le dossier media s'il n'existe pas
 mkdir -p "$PROJECT_DIR/media/"
 sudo chown -R "$WEB_USER":"$WEB_GROUP" "$PROJECT_DIR/media/"
+# Assurer que les fichiers statiques sont lisibles par le serveur web
+if [ -d "$PROJECT_DIR/staticfiles" ]; then
+    sudo chown -R "$WEB_USER":"$WEB_GROUP" "$PROJECT_DIR/staticfiles/"
+    sudo chmod -R 755 "$PROJECT_DIR/staticfiles/"
+fi
 if [ -f "$DB_FILE" ]; then
     sudo chown "$WEB_USER":"$WEB_GROUP" "$DB_FILE"
     sudo chmod 664 "$DB_FILE"

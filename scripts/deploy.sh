@@ -104,6 +104,11 @@ echo "--- Finalisation des permissions ---"
 chown -R $ADMIN_USER:$WEB_GROUP $PROJECT_DIR
 # Le serveur web (www-data) doit pouvoir écrire dans les dossiers media et la DB
 chown -R $WEB_USER:$WEB_GROUP $PROJECT_DIR/media/
+# Assurer que les fichiers statiques sont lisibles par le serveur web
+if [ -d "$PROJECT_DIR/staticfiles" ]; then
+    chown -R $WEB_USER:$WEB_GROUP $PROJECT_DIR/staticfiles/
+    chmod -R 755 $PROJECT_DIR/staticfiles/
+fi
 # Le fichier de DB doit être accessible en écriture par www-data
 touch $PROJECT_DIR/db.sqlite3 # S'assure que le fichier existe avant de changer les droits
 chown $WEB_USER:$WEB_GROUP $PROJECT_DIR/db.sqlite3
