@@ -1,0 +1,280 @@
+:root {
+    --wow-gold: #ffd100;
+    --wow-gold-dark: #c6a300;
+    --wow-dark-grey: #1a1a1a;
+    --wow-brown: #4a3b2a;
+    --wow-text: #2c1e12;
+    --wow-border: #5c4d3c;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=MedievalSharp&display=swap');
+
+body {
+    background-image: url('../images/stone_bg.png');
+    background-repeat: repeat;
+    background-color: var(--wow-dark-grey);
+    font-family: 'MedievalSharp', cursive;
+    color: var(--wow-text);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.navbar-brand {
+    font-family: 'Cinzel', serif;
+    color: var(--wow-gold);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Navbar */
+.navbar {
+    background-color: rgba(20, 20, 20, 0.95) !important;
+    border-bottom: 3px solid var(--wow-gold-dark);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.navbar-brand {
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.nav-link {
+    color: #e0e0e0 !important;
+    font-family: 'Cinzel', serif;
+    transition: color 0.3s ease;
+}
+
+.nav-link:hover {
+    color: var(--wow-gold) !important;
+    text-shadow: 0 0 5px var(--wow-gold);
+}
+
+/* Cards / Containers */
+.card,
+.container .bg-white {
+    background-image: url('../images/parchment_bg.png');
+    background-size: cover;
+    border: 2px solid var(--wow-border);
+    border-radius: 8px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(0, 0, 0, 0.2);
+    position: relative;
+}
+
+.card::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    right: 4px;
+    bottom: 4px;
+    border: 1px solid rgba(92, 77, 60, 0.3);
+    pointer-events: none;
+}
+
+.card-body {
+    color: var(--wow-text);
+}
+
+/* Buttons */
+.btn-primary {
+    background: linear-gradient(to bottom, #8b0000, #5a0000);
+    border: 2px solid #ffd700;
+    color: #ffd700;
+    font-family: 'Cinzel', serif;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(to bottom, #a00000, #700000);
+    border-color: #fff;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.btn-light {
+    background: linear-gradient(to bottom, #4a3b2a, #2c1e12);
+    border: 1px solid #8b7355;
+    color: #e0e0e0;
+    font-family: 'Cinzel', serif;
+}
+
+.btn-light:hover {
+    background: linear-gradient(to bottom, #5c4d3c, #3d2b1f);
+    color: #fff;
+    border-color: #a08b6c;
+}
+
+.btn-outline-light {
+    border-color: var(--wow-gold);
+    color: var(--wow-gold);
+    font-family: 'Cinzel', serif;
+}
+
+.btn-outline-light:hover {
+    background-color: rgba(255, 209, 0, 0.1);
+    color: #fff;
+    border-color: #fff;
+}
+
+/* Alerts */
+.alert {
+    background-image: url('../images/parchment_bg.png');
+    border: 2px solid;
+    font-family: 'MedievalSharp', cursive;
+    color: var(--wow-text);
+}
+
+.alert-success {
+    border-color: #2e7d32;
+    box-shadow: inset 0 0 10px rgba(46, 125, 50, 0.2);
+}
+
+.alert-danger {
+    border-color: #c62828;
+    box-shadow: inset 0 0 10px rgba(198, 40, 40, 0.2);
+}
+
+/* Forms */
+.form-control {
+    background-color: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--wow-border);
+    font-family: 'MedievalSharp', cursive;
+}
+
+.form-control:focus {
+    background-color: rgba(255, 255, 255, 0.8);
+    border-color: var(--wow-gold);
+    box-shadow: 0 0 5px rgba(255, 209, 0, 0.5);
+}
+
+.btn-success {
+    background: linear-gradient(to bottom, #2e7d32, #1b5e20);
+    border: 2px solid #4caf50;
+    color: #fff;
+    font-family: 'Cinzel', serif;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.btn-success:hover {
+    background: linear-gradient(to bottom, #388e3c, #2e7d32);
+    border-color: #81c784;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+.btn-outline-primary {
+    border-color: var(--wow-gold);
+    color: var(--wow-gold);
+    font-family: 'Cinzel', serif;
+}
+
+.btn-outline-primary:hover {
+    background-color: rgba(139, 0, 0, 0.2);
+    color: #fff;
+    border-color: #ff4500;
+}
+
+.badge {
+    font-family: 'Cinzel', serif;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.bg-success {
+    background-color: #2e7d32 !important;
+}
+
+.bg-warning {
+    background-color: #f57f17 !important;
+    color: #fff !important;
+}
+
+/* List Groups */
+.list-group-item {
+    background-color: transparent;
+    border-color: rgba(92, 77, 60, 0.3);
+    color: var(--wow-text);
+    font-family: 'MedievalSharp', cursive;
+}
+
+.list-group-item.bg-light {
+    background-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Card Headers */
+.card-header {
+    background-color: rgba(0, 0, 0, 0.1);
+    border-bottom: 2px solid var(--wow-border);
+    font-family: 'Cinzel', serif;
+}
+
+.card-header.bg-success {
+    background: linear-gradient(to right, #1b5e20, #2e7d32);
+    border-bottom-color: #4caf50;
+}
+
+/* Secondary Colors/Buttons */
+.bg-secondary {
+    background-color: #4a3b2a !important;
+    color: #e0e0e0 !important;
+}
+
+.btn-secondary,
+.btn-outline-secondary {
+    background-color: #4a3b2a;
+    border-color: #5c4d3c;
+    color: #e0e0e0;
+    font-family: 'Cinzel', serif;
+}
+
+.btn-secondary:hover,
+.btn-outline-secondary:hover {
+    background-color: #5c4d3c;
+    border-color: #8b7355;
+    color: #fff;
+}
+
+.text-warning {
+    color: var(--wow-gold) !important;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.bg-info {
+    background-color: #0277bd !important;
+    color: #fff !important;
+}
+
+.card-header.bg-info {
+    background: linear-gradient(to right, #01579b, #0277bd);
+    border-bottom-color: #0288d1;
+}
+
+.btn-dark {
+    background: linear-gradient(to bottom, #212121, #000000);
+    border: 1px solid #424242;
+    color: #e0e0e0;
+    font-family: 'Cinzel', serif;
+}
+
+.btn-dark:hover {
+    background: linear-gradient(to bottom, #424242, #212121);
+    border-color: #616161;
+    color: #fff;
+}
+
+.text-primary {
+    color: #b71c1c !important;
+    /* Dark Red */
+    text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.2);
+}
+
+.text-muted {
+    color: #5d4037 !important;
+    /* Brownish */
+}
