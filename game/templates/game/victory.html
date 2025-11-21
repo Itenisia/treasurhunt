@@ -1,0 +1,27 @@
+{% extends 'game/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center text-center">
+    <div class="col-md-8">
+        <div class="card border-success">
+            <div class="card-header bg-success text-white">
+                <h1>🎉 Victoire ! 🎉</h1>
+            </div>
+            <div class="card-body py-5">
+                <h3 class="card-title mb-4">Félicitations {{ user.username }} !</h3>
+                <p class="lead">Vous avez terminé la chasse <strong>{{ progress.hunt.title }}</strong>.</p>
+
+                <div class="display-1 fw-bold text-warning my-4">{{ progress.total_points }} pts</div>
+
+                <p>Merci d'avoir participé !</p>
+
+                <div class="d-grid gap-2 mt-4">
+                    <a href="{% url 'game:leaderboard' progress.hunt.id %}" class="btn btn-primary btn-lg">Voir le
+                        classement final</a>
+                    <a href="{% url 'game:home' %}" class="btn btn-outline-secondary">Retour à l'accueil</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

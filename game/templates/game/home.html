@@ -1,0 +1,37 @@
+{% extends 'game/base.html' %}
+{% load game_extras %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h1 class="text-center mb-4">Chasses Disponibles</h1>
+
+        {% for hunt in hunts %}
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">{{ hunt.title }}</h5>
+                <p class="card-text">{{ hunt.description }}</p>
+
+                {% with prog=my_progress|get_item:hunt.id %}
+                {% if prog %}
+                {% if prog.completed %}
+                <span class="badge bg-success mb-2">Terminée ({{ prog.total_points }} pts)</span>
+                <a href="{% url 'game:leaderboard' hunt.id %}" class="btn btn-outline-primary w-100">Voir le
+                    classement</a>
+                {% else %}
+                <span class="badge bg-warning text-dark mb-2">En cours - Étape {{ prog.current_step.order|default:"0" }}
+                    ({{ prog.total_points }} pts)</span>
+                <a href="{% url 'game:current_step' hunt.id %}" class="btn btn-primary w-100">Continuer</a>
+                {% endif %}
+                {% else %}
+                <a href="{% url 'game:start_hunt' hunt.id %}" class="btn btn-success w-100">Démarrer</a>
+                {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="alert alert-info">Aucune chasse disponible pour le moment.</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

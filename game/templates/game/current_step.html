@@ -1,0 +1,27 @@
+{% extends 'game/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center text-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h3>Étape {{ step_number|add:"1" }}</h3>
+            </div>
+            <div class="card-body py-5">
+                <h5 class="card-title text-muted mb-4">Votre indice :</h5>
+                <p class="display-6 fw-bold text-primary">{{ clue }}</p>
+
+                <hr class="my-4">
+
+                <p class="lead">Trouvez le QR Code caché et scannez-le !</p>
+                <p class="text-muted small">Score actuel : {{ progress.total_points }} pts</p>
+
+                <div class="d-grid gap-2 mt-4">
+                    <a href="{% url 'game:leaderboard' progress.hunt.id %}" class="btn btn-outline-secondary">Voir le
+                        classement</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
