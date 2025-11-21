@@ -1,0 +1,100 @@
+{% extends "game/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10 col-lg-8">
+        <div class="card border-0 shadow-lg"
+            style="background: url('{% static 'game/images/parchment_bg.png' %}'); background-size: cover;">
+            <div class="card-header bg-transparent border-bottom border-warning text-center">
+                <h2 class="mb-0" style="font-family: 'Cinzel', serif; color: #5a4a42;">📜 Canal de Quête</h2>
+            </div>
+            <div class="card-body">
+                <div id="chat-messages" class="mb-3 p-3"
+                    style="height: 400px; overflow-y: auto; background-color: rgba(255, 255, 255, 0.3); border: 1px solid #8b7355; border-radius: 5px;">
+                    <!-- Messages will be loaded here -->
+                    <div class="text-center text-muted italic">Chargement du parchemin...</div>
+                </div>
+
+                <form id="chat-form" class="d-flex gap-2">
+                    {% csrf_token %}
+                    <input type="text" id="message-input" class="form-control"
+                        placeholder="Écrivez votre message ici..."
+                        style="background-color: rgba(255, 255, 255, 0.5); border-color: #8b7355;" required>
+                    <button type="submit" class="btn btn-primary"
+                        style="background: linear-gradient(to bottom, #8b0000, #500000); border-color: #ffd700;">Envoyer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const chatBox = document.getElementById('chat-messages');
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('message-input');
+        let lastId = 0;
+
+        // Fonction pour charger les messages
+        function loadMessages() {
+            fetch(`{% url 'chat:get_messages' %}?last_id=${lastId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.messages.length > 0) {
+                        // Enlever le message de chargement si c'est la première fois
+                        if (lastId === 0) chatBox.innerHTML = '';
+
+                        data.messages.forEach(msg => {
+                            const msgDiv = document.createElement('div');
+                            msgDiv.className = 'mb-2';
+                            const isMe = msg.user === "{{ request.user.username }}";
+
+                            msgDiv.innerHTML = `
+                            <span class="fw-bold" style="color: ${isMe ? '#8b0000' : '#2c3e50'};">${msg.user}</span>
+                            <span class="small text-muted">[${msg.created_at}]</span>: 
+                            <span style="font-family: 'MedievalSharp', cursive; font-size: 1.1em;">${msg.message}</span>
+                        `;
+                            chatBox.appendChild(msgDiv);
+                            lastId = msg.id;
+                        });
+
+                        // Scroll vers le bas
+                        chatBox.scrollTop = chatBox.scrollHeight;
+                    }
+                })
+                .catch(error => console.error('Erreur:', error));
+        }
+
+        // Charger les messages toutes les 1 seconde
+        setInterval(loadMessages, 1000);
+        loadMessages(); // Chargement initial
+
+        // Envoi de message
+        chatForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            fetch("{% url 'chat:post_message' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({ message: message })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'ok') {
+                        messageInput.value = '';
+                        loadMessages(); // Recharger immédiatement pour voir son propre message
+                    }
+                })
+                .catch(error => console.error('Erreur:', error));
+        });
+    });
+</script>
+{% endblock %}
