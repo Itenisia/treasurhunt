@@ -14,6 +14,12 @@ urlpatterns = [
         views.scan_qr,
         name='scan_qr_scanapp',
     ),
+    # Compat pour anciens QR codes générés quand l'app était montée sous /game/
+    re_path(
+        r'^game/scan/(?P<token>[0-9a-fA-F-]{36})(?:/.*)?$',
+        views.scan_qr,
+        name='scan_qr_legacy_prefix',
+    ),
     path('scan/<uuid:token>/', views.scan_qr, name='scan_qr'),
     path('signup/', views.SignUpView.as_view(), name='signup'),
 ]

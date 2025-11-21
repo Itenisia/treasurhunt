@@ -36,6 +36,9 @@
                 <a class="nav-link text-white" href="{% url 'game:leaderboard' hunt.id %}">Classement</a>
                 {% endif %}
                 <span class="navbar-text text-white">{{ user.username }}</span>
+                <a class="btn btn-outline-light btn-sm" href="{% url 'logout' %}">Déconnexion</a>
+                {% else %}
+                <a class="btn btn-light btn-sm" href="{% url 'login' %}">Connexion</a>
                 {% endif %}
             </div>
         </div>

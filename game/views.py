@@ -146,6 +146,15 @@ def generate_qr_pdf(request, hunt_id):
 
     p = canvas.Canvas(response, pagesize=A4)
     width, height = A4
+
+    card_width = 8 * cm
+    card_height = 10 * cm
+    left_margin = 2 * cm
+    top_margin = 5 * cm
+    bottom_margin = 2 * cm
+    col_gap = 1 * cm
+    row_gap = 1 * cm
+    start_y_position = height - top_margin - card_height
     
     # Titre
     p.setFont("Helvetica-Bold", 24)
@@ -153,8 +162,8 @@ def generate_qr_pdf(request, hunt_id):
     p.setFont("Helvetica", 12)
     p.drawString(2*cm, height - 4*cm, f"Généré le {timezone.now().strftime('%d/%m/%Y')}")
     
-    y_position = height - 7*cm
-    x_position = 2*cm
+    y_position = start_y_position
+    x_position = left_margin
     
     steps = hunt.steps.all().order_by('order')
     
@@ -163,13 +172,13 @@ def generate_qr_pdf(request, hunt_id):
             continue
             
         # Dessiner le cadre
-        p.rect(x_position, y_position, 8*cm, 10*cm)
+        p.rect(x_position, y_position, card_width, card_height)
         
         # Titre de l'étape
         p.setFont("Helvetica-Bold", 16)
-        p.drawString(x_position + 0.5*cm, y_position + 9*cm, f"Étape {step.order}")
+        p.drawString(x_position + 0.5*cm, y_position + card_height - 1*cm, f"Étape {step.order}")
         p.setFont("Helvetica", 12)
-        p.drawString(x_position + 0.5*cm, y_position + 8.5*cm, step.name)
+        p.drawString(x_position + 0.5*cm, y_position + card_height - 1.5*cm, step.name)
         
         # Image QR Code
         try:
@@ -182,15 +191,15 @@ def generate_qr_pdf(request, hunt_id):
         p.drawString(x_position + 0.5*cm, y_position + 1*cm, str(step.secret_token))
         
         # Gestion de la grille (2 colonnes, 2 lignes par page)
-        x_position += 9*cm
-        if x_position > width - 9*cm:
-            x_position = 2*cm
-            y_position -= 11*cm
+        x_position += card_width + col_gap
+        if x_position > width - (card_width + col_gap):
+            x_position = left_margin
+            y_position -= card_height + row_gap
             
-        if y_position < 2*cm:
+        if y_position < bottom_margin:
             p.showPage()
-            y_position = height - 7*cm
-            x_position = 2*cm
+            y_position = start_y_position
+            x_position = left_margin
             
     p.showPage()
     p.save()

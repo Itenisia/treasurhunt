@@ -110,6 +110,14 @@ class TreasureHuntFlowTests(TestCase):
         progress = PlayerProgress.objects.get(user=self.user, hunt=self.hunt)
         self.assertEqual(progress.current_step, self.step1)
 
+    def test_scan_qr_with_legacy_game_prefix(self):
+        url = f"/game/scan/{self.step1.secret_token}/"
+        response = self.client.get(url, follow=True)
+
+        self.assertTrue(response.redirect_chain, f"Redirect chain: {response.redirect_chain}")
+        progress = PlayerProgress.objects.get(user=self.user, hunt=self.hunt)
+        self.assertEqual(progress.current_step, self.step1)
+
     def test_qr_code_generation_uses_site_base_url(self):
         capture = {}
 
