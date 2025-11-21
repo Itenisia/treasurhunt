@@ -47,6 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusEl = document.getElementById('qr-status');
     const readerContainerId = 'qr-reader';
     let scanner = null;
+    const scanTemplate = "{% url 'game:scan_qr' '00000000-0000-0000-0000-000000000000' %}";
+    const scanPrefix = scanTemplate.replace('00000000-0000-0000-0000-000000000000/', '');
 
     const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
 
@@ -89,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         formatStatus("QR détecté, redirection en cours...");
         await stopScanner();
-        window.location.href = `/game/scan/${token}/`;
+        window.location.href = `${scanPrefix}${token}/`;
     };
 
     const onScanFailure = (err) => {

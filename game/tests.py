@@ -96,6 +96,20 @@ class TreasureHuntFlowTests(TestCase):
         self.assertIsNone(progress.current_step)
         self.assertEqual(progress.total_points, 0)
 
+    def test_scan_qr_with_extra_suffix_still_works(self):
+        # Simule une URL scannée avec un segment supplémentaire (ex: /name=scanQR)
+        url = f"/scan/{self.step1.secret_token}/name=scanQR"
+        response = self.client.get(url, follow=True)
+
+        self.assertTrue(response.redirect_chain, f"Redirect chain: {response.redirect_chain}")
+        self.assertNotIn("/accounts/login", response.redirect_chain[-1][0] if response.redirect_chain else "")
+        self.assertTrue(
+            PlayerProgress.objects.filter(user=self.user, hunt=self.hunt).exists(),
+            f"Redirect chain: {response.redirect_chain}, final path: {response.request.get('PATH_INFO')}, status: {response.status_code}"
+        )
+        progress = PlayerProgress.objects.get(user=self.user, hunt=self.hunt)
+        self.assertEqual(progress.current_step, self.step1)
+
     def test_qr_code_generation_uses_site_base_url(self):
         capture = {}
 

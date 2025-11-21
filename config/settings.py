@@ -26,8 +26,15 @@ SECRET_KEY = 'django-insecure-6e&m=@ncj$di$#30(4=kvpqc#df2!zek(yqy2-li9)=av+#8vu
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['game.laviedesza.fr', 'www.game.laviedesza.fr', 'localhost', '127.0.0.1']
-CSRF_TRUSTED_ORIGINS = ['https://game.laviedesza.fr']
+ALLOWED_HOSTS = [
+    'game.laviedesza.fr',
+    'www.game.laviedesza.fr',
+    'localhost',
+    '127.0.0.1',
+]
+CSRF_TRUSTED_ORIGINS = [
+    'https://game.laviedesza.fr',
+]
 
 
 
