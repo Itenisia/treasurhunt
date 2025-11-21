@@ -24,7 +24,7 @@
                 <hr class="my-4">
                 <div class="text-start">
                     <h5 class="mb-3">Scanner un QR Code</h5>
-                    <p class="text-muted small">Activez la caméra puis pointez vers le QR Code pour valider l'étape.</p>
+                    <p class="text-muted small">Activez la caméra, passez en plein écran, puis pointez vers le QR Code.</p>
                     <div class="d-flex gap-2 mb-2">
                         <button id="qr-start" class="btn btn-dark btn-sm">Activer la caméra</button>
                         <button id="qr-stop" class="btn btn-outline-secondary btn-sm d-none">Arrêter</button>
@@ -34,6 +34,17 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<div id="qr-overlay" class="qr-overlay d-none">
+    <div class="qr-overlay-inner">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-white">Mode plein écran</span>
+            <button id="qr-close" class="btn btn-outline-light btn-sm">Revenir</button>
+        </div>
+        <div id="qr-reader-full" class="qr-reader-full rounded"></div>
+        <div id="qr-status-full" class="text-white small mt-2"></div>
     </div>
 </div>
 {% endblock %}
@@ -46,15 +57,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const stopBtn = document.getElementById('qr-stop');
     const statusEl = document.getElementById('qr-status');
     const readerContainerId = 'qr-reader';
+    const overlay = document.getElementById('qr-overlay');
+    const overlayReaderId = 'qr-reader-full';
+    const overlayStatus = document.getElementById('qr-status-full');
+    const overlayClose = document.getElementById('qr-close');
     let scanner = null;
     const scanTemplate = "{% url 'game:scan_qr' '00000000-0000-0000-0000-000000000000' %}";
     const scanPrefix = scanTemplate.replace('00000000-0000-0000-0000-000000000000/', '');
 
     const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
 
-    const formatStatus = (text, isError = false) => {
+    const formatStatus = (text, isError = false, full = false) => {
         statusEl.textContent = text;
         statusEl.classList.toggle('text-danger', isError);
+        if (full && overlayStatus) {
+            overlayStatus.textContent = text;
+            overlayStatus.classList.toggle('text-danger', isError);
+        }
     };
 
     const extractToken = (raw) => {
@@ -80,7 +99,13 @@ document.addEventListener('DOMContentLoaded', () => {
         scanner = null;
         startBtn.classList.remove('d-none');
         stopBtn.classList.add('d-none');
-        formatStatus('Caméra arrêtée.');
+        if (overlay) {
+            overlay.classList.add('d-none');
+        }
+        if (document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+        }
+        formatStatus('Caméra arrêtée.', false, true);
     };
 
     const onScanSuccess = async (decodedText) => {
@@ -89,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formatStatus("QR détecté mais format inattendu.", true);
             return;
         }
-        formatStatus("QR détecté, redirection en cours...");
+        formatStatus("QR détecté, redirection en cours...", false, true);
         await stopScanner();
         window.location.href = `${scanPrefix}${token}/`;
     };
@@ -107,7 +132,14 @@ document.addEventListener('DOMContentLoaded', () => {
             formatStatus("Bibliothèque de scan non chargée.", true);
             return;
         }
-        scanner = new Html5Qrcode(readerContainerId);
+        const containerId = overlay ? overlayReaderId : readerContainerId;
+        const statusFull = overlay ? true : false;
+        scanner = new Html5Qrcode(containerId);
+        if (overlay) {
+            overlay.classList.remove('d-none');
+            overlayStatus.textContent = '';
+            overlay.requestFullscreen?.().catch(() => {});
+        }
         scanner.start(
             { facingMode: "environment" },
             { fps: 10, qrbox: 250 },
@@ -116,17 +148,43 @@ document.addEventListener('DOMContentLoaded', () => {
         ).then(() => {
             startBtn.classList.add('d-none');
             stopBtn.classList.remove('d-none');
-            formatStatus("Caméra active. Scannez le QR Code.");
+            formatStatus("Caméra active. Scannez le QR Code.", false, statusFull);
         }).catch((err) => {
             scanner = null;
-            formatStatus("Impossible d'accéder à la caméra. Vérifiez les permissions.", true);
+            if (overlay) {
+                overlay.classList.add('d-none');
+            }
+            formatStatus("Impossible d'accéder à la caméra. Vérifiez les permissions.", true, statusFull);
             console.error(err);
         });
     };
 
     startBtn.addEventListener('click', startScanner);
     stopBtn.addEventListener('click', stopScanner);
+    overlayClose?.addEventListener('click', stopScanner);
     window.addEventListener('beforeunload', stopScanner);
 });
 </script>
+<style>
+    .qr-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+    }
+    .qr-overlay-inner {
+        width: min(720px, 100%);
+        max-width: 95vw;
+    }
+    .qr-reader-full {
+        width: 100%;
+        min-height: 240px;
+        background: #111;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+</style>
 {% endblock %}

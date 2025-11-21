@@ -17,11 +17,12 @@ class SignUpView(generic.CreateView):
     success_url = reverse_lazy('login')
     template_name = 'registration/signup.html'
 
-@login_required
 def home(request):
     """Liste des chasses disponibles."""
     hunts = Hunt.objects.all()
-    my_progress = {p.hunt_id: p for p in PlayerProgress.objects.filter(user=request.user)}
+    my_progress = {}
+    if request.user.is_authenticated:
+        my_progress = {p.hunt_id: p for p in PlayerProgress.objects.filter(user=request.user)}
     
     context = {
         'hunts': hunts,
