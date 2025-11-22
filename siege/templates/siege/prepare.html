@@ -9,38 +9,22 @@
         Or disponible : <span id="gold-display" class="fw-bold">{{ profile.gold }}</span> 💰
     </div>
 
-    <div class="row">
-        {% for key, unit in units.items %}
-        <div class="col-md-3 mb-3">
-            <div class="card bg-dark text-white border-secondary h-100">
-                <div class="card-header text-center text-warning">{{ unit.name }}</div>
-                <div class="card-body text-center">
-                    <div class="display-4 mb-2">
-                        {% if key == 'peasant' %}🧑‍🌾{% elif key == 'archer' %}🏹{% elif key == 'knight' %}⚔️{% elif
-                        key == 'catapult' %}☄️{% endif %}
-                    </div>
-                    <p>Puissance : {{ unit.power }}</p>
-                    <p class="text-warning">Coût : {{ unit.cost }} 💰</p>
+    <input type="number" id="count-{{ key }}" class="form-control text-center bg-secondary text-white unit-input"
+        value="0" min="0" readonly data-cost="{{ unit.cost }}" data-key="{{ key }}">
+    <button class="btn btn-outline-light" onclick="updateCount('{{ key }}', 1)">+</button>
+</div>
+</div>
+</div>
+</div>
+{% endfor %}
+</div>
 
-                    <div class="input-group">
-                        <button class="btn btn-outline-light" onclick="updateCount('{{ key }}', -1)">-</button>
-                        <input type="number" id="count-{{ key }}"
-                            class="form-control text-center bg-secondary text-white unit-input" value="0" min="0"
-                            readonly data-cost="{{ unit.cost }}" data-key="{{ key }}">
-                        <button class="btn btn-outline-light" onclick="updateCount('{{ key }}', 1)">+</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-
-    <div class="text-center mt-4">
-        <h3 class="text-white">Coût Total : <span id="total-cost" class="text-success">0</span> 💰</h3>
-        <button id="submit-btn" class="btn btn-success btn-lg mt-2" onclick="submitArmy()">
-            Lancer l'Assaut !
-        </button>
-    </div>
+<div class="text-center mt-4">
+    <h3 class="text-white">Coût Total : <span id="total-cost" class="text-success">0</span> 💰</h3>
+    <button id="submit-btn" class="btn btn-success btn-lg mt-2" onclick="submitArmy()">
+        Lancer l'Assaut !
+    </button>
+</div>
 </div>
 
 {% csrf_token %}
