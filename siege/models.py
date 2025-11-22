@@ -41,6 +41,9 @@ class Battle(models.Model):
     attacker_units = models.JSONField(default=dict)
     defender_units = models.JSONField(default=dict)
     
+    attacker_layout = models.JSONField(default=dict, blank=True)
+    defender_layout = models.JSONField(default=dict, blank=True)
+    
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PREPARING')
     winner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='battles_won')
     

@@ -105,6 +105,114 @@
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+{% extends "game/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <h2 class="text-center mb-4 text-warning" style="font-family: 'Cinzel', serif;">Préparez votre Armée</h2>
+
+    <div class="alert alert-info text-center">
+        Or disponible : <span id="gold-display" class="fw-bold">{{ profile.gold }}</span> 💰
+    </div>
+
+    <div class="row">
+        {% for key, unit in units.items %}
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark text-white border-secondary h-100">
+                <div class="card-header text-center text-warning">{{ unit.name }}</div>
+                <div class="card-body text-center">
+                    <div class="display-4 mb-2">
+                        {{ unit.emoji }}
+                    </div>
+                    <p>Puissance : {{ unit.power }}</p>
+                    <p class="text-warning">Coût : {{ unit.cost }} 💰</p>
+
+                    <div class="input-group">
+                        <button class="btn btn-outline-light" onclick="updateCount('{{ key }}', -1)">-</button>
+                        <input type="number" id="count-{{ key }}"
+                            class="form-control text-center bg-secondary text-white unit-input" value="0" min="0"
+                            readonly data-cost="{{ unit.cost }}" data-key="{{ key }}">
+                        <button class="btn btn-outline-light" onclick="updateCount('{{ key }}', 1)">+</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="text-center mt-4">
+        <h3 class="text-white">Coût Total : <span id="total-cost" class="text-success">0</span> 💰</h3>
+        <button id="submit-btn" class="btn btn-success btn-lg mt-2" onclick="submitArmy()">
+            Lancer l'Assaut !
+        </button>
+    </div>
+</div>
+
+{% csrf_token %}
+
+<script>
+    const maxGold = {{ profile.gold }};
+    const battleId = {{ battle.id }};
+    let currentCost = 0;
+
+    function updateCount(unitKey, change) {
+        const input = document.getElementById(`count-${unitKey}`);
+        let newVal = parseInt(input.value) + change;
+        if (newVal < 0) newVal = 0;
+
+        // Calculer le coût hypothétique
+        let tempCost = 0;
+        document.querySelectorAll('.unit-input').forEach(el => {
+            let count = (el.id === `count-${unitKey}`) ? newVal : parseInt(el.value);
+            tempCost += count * parseInt(el.dataset.cost);
+        });
+
+        if (tempCost <= maxGold) {
+            input.value = newVal;
+            updateTotal();
+        } else {
+            alert("Pas assez d'or !");
+        }
+    }
+
+    function updateTotal() {
+        let total = 0;
+        document.querySelectorAll('.unit-input').forEach(el => {
+            total += parseInt(el.value) * parseInt(el.dataset.cost);
+        });
+        currentCost = total;
+        const costDisplay = document.getElementById('total-cost');
+        costDisplay.innerText = total;
+
+        if (total > maxGold) {
+            costDisplay.classList.remove('text-success');
+            costDisplay.classList.add('text-danger');
+            document.getElementById('submit-btn').disabled = true;
+        } else {
+            costDisplay.classList.remove('text-danger');
+            costDisplay.classList.add('text-success');
+            document.getElementById('submit-btn').disabled = false;
+        }
+    }
+
+    function submitArmy() {
+        const units = {};
+        document.querySelectorAll('.unit-input').forEach(el => {
+            if (parseInt(el.value) > 0) {
+                units[el.dataset.key] = parseInt(el.value);
+            }
+        });
+
+        if (Object.keys(units).length === 0) {
+            alert("Vous devez recruter au moins une unité !");
+            return;
+        }
+
+        fetch("{% url 'siege:submit_army' battle.id %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
             },
             body: JSON.stringify({ units: units })
@@ -112,7 +220,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'ok') {
-                    window.location.href = "{% url 'siege:room' battle.id %}";
+                    window.location.href = `/siege/battle/${battleId}/placement/`;
                 } else {
                     alert(data.message);
                 }

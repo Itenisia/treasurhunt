@@ -1,97 +1,223 @@
-{% extends "game/base.html" %}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block content %}
-<div class="container text-center">
-    <h2 class="mb-4 text-warning" style="font-family: 'Cinzel', serif;">Champ de Bataille</h2>
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-4xl font-bold text-center mb-4 text-red-600">Champ de Bataille</h1>
 
-    <div id="status-message" class="alert alert-info">
-        En attente de l'adversaire...
+    <div class="text-center mb-4">
+        <h2 class="text-2xl text-white">
+            <span class="text-blue-400">{{ battle.attacker.username }}</span>
+            vs
+            <span class="text-red-400">{{ battle.defender.username|default:"Défenseur" }}</span>
+        </h2>
+        <div id="battle-status" class="text-xl font-bold mt-2 text-yellow-400">Combat en cours...</div>
     </div>
 
-    <div class="row mt-5" id="battle-arena" style="display: none;">
-        <div class="col-md-5">
-            <h3 class="text-danger">Attaquant</h3>
-            <div id="attacker-name" class="h4 mb-3"></div>
-            <div id="attacker-army" class="d-flex flex-wrap justify-content-center gap-2"></div>
-        </div>
-
-        <div class="col-md-2 d-flex align-items-center justify-content-center">
-            <div class="display-1">VS</div>
-        </div>
-
-        <div class="col-md-5">
-            <h3 class="text-primary">Défenseur</h3>
-            <div id="defender-name" class="h4 mb-3"></div>
-            <div id="defender-army" class="d-flex flex-wrap justify-content-center gap-2"></div>
-        </div>
+    <div class="flex justify-center">
+        <canvas id="battleCanvas" width="600" height="600"
+            class="bg-gray-900 border-4 border-gray-700 rounded shadow-2xl"></canvas>
     </div>
 
-    <div id="result-area" class="mt-5" style="display: none;">
-        <h1 id="winner-text" class="display-3 fw-bold" style="font-family: 'MedievalSharp', cursive;"></h1>
-        <a href="{% url 'siege:hq' %}" class="btn btn-warning btn-lg mt-3">Retour au QG</a>
+    <div class="text-center mt-6">
+        <a href="{% url 'siege:hq' %}" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+            Retour au QG
+        </a>
     </div>
 </div>
 
 <script>
-    const battleId = {{ battle.id }};
-    const unitIcons = {
+    const canvas = document.getElementById('battleCanvas');
+    const ctx = canvas.getContext('2d');
+    const CELL_SIZE = 60;
+    const GRID_SIZE = 10;
+
+    const attackerLayout = {{ battle.attacker_layout| safe }}; // {"x,y": "slug"}
+    const defenderLayout = {{ battle.defender_layout| safe }};
+
+    const unitsConfig = {
         {% for slug, unit in units_config.items %}
-    '{{ slug }}': '{{ unit.emoji }}',
-        {% endfor %}
+    "{{ slug }}": {
+        "emoji": "{{ unit.emoji }}",
+            "name": "{{ unit.name }}",
+                "power": { { unit.power } },
+        "hp": { { unit.power } } * 10, // Simple HP formula
+            "range": 1, // Melee default
+                "speed": 1
+    },
+    {% endfor %}
     };
 
-    function pollState() {
-        fetch(`{% url 'siege:state' battle.id %}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'FINISHED') {
-                    showResult(data);
-                } else {
-                    setTimeout(pollState, 2000);
-                }
+    // Initialize Units
+    let units = [];
+
+    function initUnits(layout, owner) {
+        for (const [pos, slug] of Object.entries(layout)) {
+            const [x, y] = pos.split(',').map(Number);
+            const config = unitsConfig[slug];
+            units.push({
+                id: Math.random().toString(36).substr(2, 9),
+                x: x,
+                y: y,
+                type: slug,
+                owner: owner, // 'attacker' or 'defender'
+                emoji: config.emoji,
+                hp: config.hp,
+                maxHp: config.hp,
+                power: config.power,
+                range: config.range,
+                lastAction: 0
             });
-    }
-
-    function showResult(data) {
-        document.getElementById('status-message').style.display = 'none';
-        document.getElementById('battle-arena').style.display = 'flex';
-
-        document.getElementById('attacker-name').innerText = data.attacker;
-        document.getElementById('defender-name').innerText = data.defender || "Personne";
-
-        // Afficher les armées
-        renderArmy('attacker-army', data.attacker_units);
-        renderArmy('defender-army', data.defender_units);
-
-        // Afficher le vainqueur
-        const resultArea = document.getElementById('result-area');
-        const winnerText = document.getElementById('winner-text');
-
-        resultArea.style.display = 'block';
-        if (data.winner) {
-            winnerText.innerText = (data.winner === "{{ request.user.username }}") ? "VICTOIRE !" : "DÉFAITE...";
-            winnerText.style.color = (data.winner === "{{ request.user.username }}") ? "#28a745" : "#dc3545";
-        } else {
-            winnerText.innerText = "ÉGALITÉ !";
-            winnerText.style.color = "#ffc107";
         }
     }
 
-    function renderArmy(elementId, units) {
-        const container = document.getElementById(elementId);
-        container.innerHTML = '';
-        for (const [unit, count] of Object.entries(units)) {
-            for (let i = 0; i < count; i++) {
-                const span = document.createElement('span');
-                span.innerText = unitIcons[unit] || '?';
-                span.style.fontSize = '2rem';
-                span.title = unit;
-                container.appendChild(span);
+    initUnits(attackerLayout, 'attacker');
+    initUnits(defenderLayout, 'defender');
+
+    let battleOver = false;
+
+    function draw() {
+        // Clear
+        ctx.fillStyle = '#1a202c';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Grid
+        ctx.strokeStyle = '#2d3748';
+        for (let i = 0; i <= GRID_SIZE; i++) {
+            ctx.beginPath();
+            ctx.moveTo(i * CELL_SIZE, 0);
+            ctx.lineTo(i * CELL_SIZE, canvas.height);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(0, i * CELL_SIZE);
+            ctx.lineTo(canvas.width, i * CELL_SIZE);
+            ctx.stroke();
+        }
+
+        // Zones
+        ctx.fillStyle = 'rgba(66, 153, 225, 0.1)'; // Blue tint for attacker
+        ctx.fillRect(0, 0, 3 * CELL_SIZE, canvas.height);
+
+        ctx.fillStyle = 'rgba(245, 101, 101, 0.1)'; // Red tint for defender
+        ctx.fillRect(7 * CELL_SIZE, 0, 3 * CELL_SIZE, canvas.height);
+
+        // Units
+        units.forEach(u => {
+            const px = u.x * CELL_SIZE + CELL_SIZE / 2;
+            const py = u.y * CELL_SIZE + CELL_SIZE / 2;
+
+            // HP Bar
+            const hpPct = u.hp / u.maxHp;
+            ctx.fillStyle = 'red';
+            ctx.fillRect(px - 20, py - 25, 40, 5);
+            ctx.fillStyle = '#48bb78';
+            ctx.fillRect(px - 20, py - 25, 40 * hpPct, 5);
+
+            // Emoji
+            ctx.font = '30px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(u.emoji, px, py);
+
+            // Owner Indicator
+            ctx.beginPath();
+            ctx.arc(px + 15, py + 15, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = u.owner === 'attacker' ? '#4299e1' : '#f56565';
+            ctx.fill();
+        });
+    }
+
+    function getDistance(u1, u2) {
+        return Math.abs(u1.x - u2.x) + Math.abs(u1.y - u2.y); // Manhattan distance
+    }
+
+    function update() {
+        if (battleOver) return;
+
+        const attackers = units.filter(u => u.owner === 'attacker');
+        const defenders = units.filter(u => u.owner === 'defender');
+
+        if (attackers.length === 0) {
+            endBattle('defender');
+            return;
+        }
+        if (defenders.length === 0) {
+            endBattle('attacker');
+            return;
+        }
+
+        // Simple Turn Logic (random order for chaos/fairness)
+        // In a real game, we'd use initiative.
+        // Here we just iterate all units and let them act if cooldown ready.
+        // For simplicity, let's move everyone once per "tick" (approx 1 sec)
+
+        units.forEach(u => {
+            if (u.hp <= 0) return;
+
+            // Find nearest enemy
+            let enemies = u.owner === 'attacker' ? defenders : attackers;
+            enemies = enemies.filter(e => e.hp > 0);
+
+            if (enemies.length === 0) return;
+
+            let target = enemies.reduce((prev, curr) => {
+                return getDistance(u, curr) < getDistance(u, prev) ? curr : prev;
+            });
+
+            const dist = getDistance(u, target);
+
+            if (dist <= u.range) {
+                // Attack
+                target.hp -= u.power;
+                // Visual effect?
+            } else {
+                // Move towards target
+                // Simple pathfinding: move closer in X or Y
+                let dx = target.x - u.x;
+                let dy = target.y - u.y;
+
+                let newX = u.x;
+                let newY = u.y;
+
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    newX += Math.sign(dx);
+                } else {
+                    newY += Math.sign(dy);
+                }
+
+                // Check collision
+                if (!units.some(other => other.x === newX && other.y === newY && other.hp > 0)) {
+                    u.x = newX;
+                    u.y = newY;
+                }
             }
-        }
+        });
+
+        // Cleanup dead
+        units = units.filter(u => u.hp > 0);
     }
 
-    pollState();
+    function endBattle(winner) {
+        battleOver = true;
+        const statusEl = document.getElementById('battle-status');
+        const winnerName = winner === 'attacker' ? '{{ battle.attacker.username }}' : '{{ battle.defender.username|default:"Défenseur" }}';
+        statusEl.textContent = `Victoire de ${winnerName} !`;
+        statusEl.classList.add(winner === 'attacker' ? 'text-blue-500' : 'text-red-500');
+
+        // Send result to server (Optional, if we trust client)
+        // For now, server uses Power calculation, so this is just visual.
+        // But user wanted simulation to matter.
+        // Let's just show the result. The server "Battle State" API could be polled to see official result.
+    }
+
+    // Game Loop
+    setInterval(() => {
+        update();
+        draw();
+    }, 1000); // 1 tick per second
+
+    draw();
+
 </script>
 {% endblock %}

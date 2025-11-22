@@ -6,6 +6,7 @@ from django.db import transaction
 from django.contrib import messages
 from .models import SiegeProfile, Battle, UnitType
 import json
+import random
 
 from django.utils import timezone
 from datetime import timedelta
@@ -170,6 +171,51 @@ def create_challenge(request, user_id):
     return redirect('siege:prepare', battle_id=battle.id)
 
 @login_required
+def start_training(request):
+    trainer, _ = User.objects.get_or_create(username='Entraineur')
+    # Ensure trainer has a profile
+    SiegeProfile.objects.get_or_create(user=trainer)
+    
+    battle = Battle.objects.create(attacker=request.user, defender=trainer)
+    return redirect('siege:prepare', battle_id=battle.id)
+
+def generate_bot_army(target_cost):
+    units_db = list(UnitType.objects.all())
+    if not units_db:
+        return {}
+    
+    army = {}
+    current_cost = 0
+    
+    # Simple greedy or random approach
+    while current_cost < target_cost:
+        # Filter units that fit in remaining budget
+        affordable_units = [u for u in units_db if current_cost + u.cost <= target_cost]
+        if not affordable_units:
+            break
+            
+        unit = random.choice(affordable_units)
+        army[unit.slug] = army.get(unit.slug, 0) + 1
+        current_cost += unit.cost
+            
+    return army
+
+def generate_bot_layout(army):
+    layout = {}
+    # Defender zone: x in [7, 9], y in [0, 9]
+    available_spots = [(x, y) for x in range(7, 10) for y in range(10)]
+    random.shuffle(available_spots)
+    
+    for unit_slug, count in army.items():
+        for _ in range(count):
+            if not available_spots:
+                break
+            x, y = available_spots.pop()
+            layout[f"{x},{y}"] = unit_slug
+            
+    return layout
+
+@login_required
 def find_match(request):
     # Chercher une bataille en attente (ancienne méthode, gardée pour compatibilité ou "Partie Rapide")
     battle = Battle.objects.filter(status='PREPARING', defender__isnull=True).exclude(attacker=request.user).first()
@@ -235,12 +281,18 @@ def submit_army(request, battle_id):
             elif request.user == battle.defender:
                 battle.defender_units = units_selected
             
+            # Bot Logic
+            if battle.defender.username == 'Entraineur':
+                 bot_army = generate_bot_army(total_cost)
+                 battle.defender_units = bot_army
+                 battle.defender_layout = generate_bot_layout(bot_army)
+            
             battle.save()
             
             # Si les deux ont choisi, passer en combat
             if battle.attacker_units and battle.defender_units:
-                battle.status = 'FIGHTING'
-                battle.save()
+                # battle.status = 'FIGHTING' # Wait for placement
+                pass
                 
         return JsonResponse({'status': 'ok'})
         
@@ -314,3 +366,56 @@ def resolve_battle(battle):
             
     battle.status = 'FINISHED'
     battle.save()
+
+@login_required
+def placement(request, battle_id):
+    battle = get_object_or_404(Battle, pk=battle_id)
+    
+    # Determine which units to show
+    if request.user == battle.attacker:
+        units_available = battle.attacker_units
+        current_layout = battle.attacker_layout
+    elif request.user == battle.defender:
+        units_available = battle.defender_units
+        current_layout = battle.defender_layout
+    else:
+        return redirect('siege:hq')
+        
+    # If layout already exists, maybe redirect to room? Or allow edit?
+    # For now, if layout is set, go to room.
+    if current_layout:
+         return redirect('siege:room', battle_id=battle.id)
+
+    units_config = {u.slug: u for u in UnitType.objects.all()}
+    
+    return render(request, 'siege/placement.html', {
+        'battle': battle,
+        'units_available': units_available,
+        'units_config': units_config
+    })
+
+@login_required
+@require_POST
+def save_placement(request, battle_id):
+    battle = get_object_or_404(Battle, pk=battle_id)
+    try:
+        data = json.loads(request.body)
+        layout = data.get('layout', {})
+        
+        if request.user == battle.attacker:
+            battle.attacker_layout = layout
+        elif request.user == battle.defender:
+            battle.defender_layout = layout
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
+            
+        battle.save()
+        
+        # Check if both have placed
+        if battle.attacker_layout and battle.defender_layout:
+             battle.status = 'FIGHTING'
+             battle.save()
+        
+        return JsonResponse({'status': 'ok'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
