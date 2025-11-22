@@ -12,7 +12,7 @@ UNITS = {
 }
 
 class SiegeProfile(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='siege_profile')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='siege_profile')
     gold = models.IntegerField(default=100)
     wins = models.IntegerField(default=0)
     losses = models.IntegerField(default=0)
