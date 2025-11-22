@@ -22,6 +22,7 @@
                 <a class="nav-link text-white" href="{% url 'game:leaderboard' hunt.id %}">Classement</a>
                 {% endif %}
                 <a class="nav-link text-warning" href="{% url 'chat:room' %}">📜 Canal de Quête</a>
+                <a class="nav-link text-danger" href="{% url 'siege:hq' %}">🏰 Siège</a>
                 <span class="navbar-text text-white">{{ user.username }}</span>
                 <a class="btn btn-outline-light btn-sm" href="{% url 'logout' %}?next=/">Déconnexion</a>
                 {% else %}

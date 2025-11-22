@@ -1,0 +1,98 @@
+{% extends "game/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container text-center">
+    <h2 class="mb-4 text-warning" style="font-family: 'Cinzel', serif;">Champ de Bataille</h2>
+
+    <div id="status-message" class="alert alert-info">
+        En attente de l'adversaire...
+    </div>
+
+    <div class="row mt-5" id="battle-arena" style="display: none;">
+        <div class="col-md-5">
+            <h3 class="text-danger">Attaquant</h3>
+            <div id="attacker-name" class="h4 mb-3"></div>
+            <div id="attacker-army" class="d-flex flex-wrap justify-content-center gap-2"></div>
+        </div>
+
+        <div class="col-md-2 d-flex align-items-center justify-content-center">
+            <div class="display-1">VS</div>
+        </div>
+
+        <div class="col-md-5">
+            <h3 class="text-primary">Défenseur</h3>
+            <div id="defender-name" class="h4 mb-3"></div>
+            <div id="defender-army" class="d-flex flex-wrap justify-content-center gap-2"></div>
+        </div>
+    </div>
+
+    <div id="result-area" class="mt-5" style="display: none;">
+        <h1 id="winner-text" class="display-3 fw-bold" style="font-family: 'MedievalSharp', cursive;"></h1>
+        <a href="{% url 'siege:hq' %}" class="btn btn-warning btn-lg mt-3">Retour au QG</a>
+    </div>
+</div>
+
+<script>
+    const battleId = {{ battle.id }};
+    const unitIcons = {
+        'peasant': '🧑‍🌾',
+        'archer': '🏹',
+        'knight': '⚔️',
+        'catapult': '☄️'
+    };
+
+    function pollState() {
+        fetch(`{% url 'siege:state' battle.id %}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'FINISHED') {
+                    showResult(data);
+                } else {
+                    setTimeout(pollState, 2000);
+                }
+            });
+    }
+
+    function showResult(data) {
+        document.getElementById('status-message').style.display = 'none';
+        document.getElementById('battle-arena').style.display = 'flex';
+
+        document.getElementById('attacker-name').innerText = data.attacker;
+        document.getElementById('defender-name').innerText = data.defender || "Personne";
+
+        // Afficher les armées
+        renderArmy('attacker-army', data.attacker_units);
+        renderArmy('defender-army', data.defender_units);
+
+        // Afficher le vainqueur
+        const resultArea = document.getElementById('result-area');
+        const winnerText = document.getElementById('winner-text');
+
+        resultArea.style.display = 'block';
+        if (data.winner) {
+            winnerText.innerText = (data.winner === "{{ request.user.username }}") ? "VICTOIRE !" : "DÉFAITE...";
+            winnerText.style.color = (data.winner === "{{ request.user.username }}") ? "#28a745" : "#dc3545";
+        } else {
+            winnerText.innerText = "ÉGALITÉ !";
+            winnerText.style.color = "#ffc107";
+        }
+    }
+
+    function renderArmy(elementId, units) {
+        const container = document.getElementById(elementId);
+        container.innerHTML = '';
+        for (const [unit, count] of Object.entries(units)) {
+            for (let i = 0; i < count; i++) {
+                const span = document.createElement('span');
+                span.innerText = unitIcons[unit] || '?';
+                span.style.fontSize = '2rem';
+                span.title = unit;
+                container.appendChild(span);
+            }
+        }
+    }
+
+    pollState();
+</script>
+{% endblock %}
