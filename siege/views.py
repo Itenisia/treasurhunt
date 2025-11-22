@@ -7,14 +7,64 @@ from django.contrib import messages
 from .models import SiegeProfile, Battle, UNITS
 import json
 
+from django.utils import timezone
+from datetime import timedelta
+from django.contrib.auth.models import User
+from django.db.models import Q
+
 @login_required
 def hq(request):
     profile, _ = SiegeProfile.objects.get_or_create(user=request.user)
     return render(request, 'siege/hq.html', {'profile': profile})
 
 @login_required
+def select_opponent(request):
+    # Exclure soi-même et les superusers si besoin
+    users = User.objects.exclude(id=request.user.id).select_related('siege_profile')
+    return render(request, 'siege/select_opponent.html', {'users': users})
+
+@login_required
+def create_challenge(request, user_id):
+    target_user = get_object_or_404(User, pk=user_id)
+    
+    if target_user == request.user:
+        messages.error(request, "Vous ne pouvez pas vous attaquer vous-même !")
+        return redirect('siege:select_opponent')
+
+    # Vérification des contraintes
+    now = timezone.now()
+    one_hour_ago = now - timedelta(hours=1)
+    one_day_ago = now - timedelta(days=1)
+    
+    # 1. Max 1 fois par heure
+    recent_battles = Battle.objects.filter(
+        attacker=request.user,
+        defender=target_user,
+        created_at__gte=one_hour_ago
+    )
+    if recent_battles.exists():
+        messages.warning(request, f"Vous avez déjà attaqué {target_user.username} il y a moins d'une heure. Reposez vos troupes !")
+        return redirect('siege:select_opponent')
+        
+    # 2. Max 3 fois par jour
+    daily_battles = Battle.objects.filter(
+        attacker=request.user,
+        defender=target_user,
+        created_at__gte=one_day_ago
+    ).count()
+    
+    if daily_battles >= 3:
+        messages.warning(request, f"Vous avez atteint la limite de 3 attaques par jour contre {target_user.username}.")
+        return redirect('siege:select_opponent')
+
+    # Création de la bataille
+    battle = Battle.objects.create(attacker=request.user, defender=target_user)
+    messages.success(request, f"À l'attaque ! Vous défiez {target_user.username} !")
+    return redirect('siege:prepare', battle_id=battle.id)
+
+@login_required
 def find_match(request):
-    # Chercher une bataille en attente
+    # Chercher une bataille en attente (ancienne méthode, gardée pour compatibilité ou "Partie Rapide")
     battle = Battle.objects.filter(status='PREPARING', defender__isnull=True).exclude(attacker=request.user).first()
     
     if battle:
@@ -22,9 +72,9 @@ def find_match(request):
         battle.save()
         return redirect('siege:prepare', battle_id=battle.id)
     else:
-        # Créer une nouvelle bataille
-        battle = Battle.objects.create(attacker=request.user)
-        return redirect('siege:prepare', battle_id=battle.id)
+        # Rediriger vers la sélection d'adversaire par défaut maintenant
+        return redirect('siege:select_opponent')
+
 
 @login_required
 def prepare_battle(request, battle_id):
