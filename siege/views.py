@@ -15,7 +15,109 @@ from django.db.models import Q
 @login_required
 def hq(request):
     profile, _ = SiegeProfile.objects.get_or_create(user=request.user)
-    return render(request, 'siege/hq.html', {'profile': profile})
+    
+    # Auto-resolve pending battles older than 1 hour
+    one_hour_ago = timezone.now() - timedelta(hours=1)
+    pending_battles = Battle.objects.filter(
+        defender=request.user,
+        status='PREPARING',
+        created_at__lt=one_hour_ago
+    )
+    
+    for battle in pending_battles:
+        auto_resolve_battle(battle)
+        
+    # Fetch active challenges
+    challenges = Battle.objects.filter(
+        defender=request.user,
+        status='PREPARING'
+    ).order_by('-created_at')
+    
+    return render(request, 'siege/hq.html', {
+        'profile': profile,
+        'challenges': challenges,
+        'units': UNITS
+    })
+
+@login_required
+def refuse_battle(request, battle_id):
+    battle = get_object_or_404(Battle, pk=battle_id, defender=request.user, status='PREPARING')
+    profile = request.user.siege_profile
+    
+    today = timezone.now().date()
+    if profile.last_refusal_date != today:
+        profile.refusals_today = 0
+        profile.last_refusal_date = today
+        
+    if profile.refusals_today >= 3:
+        messages.error(request, "Vous avez déjà refusé 3 combats aujourd'hui. Vous devez vous battre !")
+        return redirect('siege:hq')
+        
+    profile.refusals_today += 1
+    profile.save()
+    
+    battle.delete() # Or set status to CANCELLED
+    messages.success(request, "Combat refusé avec succès.")
+    return redirect('siege:hq')
+
+@login_required
+@require_POST
+def save_default_army(request):
+    profile = request.user.siege_profile
+    try:
+        data = json.loads(request.body)
+        units_selected = data.get('units', {})
+        
+        # Validate cost
+        total_cost = 0
+        for unit_key, count in units_selected.items():
+            if unit_key in UNITS:
+                total_cost += UNITS[unit_key]['cost'] * int(count)
+                
+        if total_cost > profile.gold:
+             return JsonResponse({'status': 'error', 'message': 'Coût supérieur à votre or actuel !'}, status=400)
+
+        profile.default_army = units_selected
+        profile.save()
+        return JsonResponse({'status': 'ok'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+def auto_resolve_battle(battle):
+    defender_profile = battle.defender.siege_profile
+    
+    # Use default army or random
+    if defender_profile.default_army:
+        # Verify if they still have enough gold, otherwise scale down? 
+        # For simplicity, we assume they spend gold NOW.
+        # But wait, gold is deducted at submit_army. 
+        # So we need to deduct gold here too.
+        
+        # Simple logic: try to buy default army
+        cost = 0
+        army = defender_profile.default_army
+        for u, c in army.items():
+            cost += UNITS[u]['cost'] * c
+            
+        if defender_profile.gold >= cost:
+            defender_profile.gold -= cost
+            defender_profile.save()
+            battle.defender_units = army
+        else:
+            # Not enough gold for default, buy nothing (or random logic could go here)
+            battle.defender_units = {} 
+    else:
+        # No default army, buy nothing (easy win for attacker)
+        battle.defender_units = {}
+        
+    battle.status = 'FIGHTING'
+    battle.save()
+    # Resolution will happen when someone views the battle state or we can trigger it now
+    # Let's trigger resolution logic immediately if we want, but battle_state view handles it.
+    # To be safe, let's leave it to battle_state or call resolve_battle here.
+    # But resolve_battle is not imported or is below. 
+    # Let's just set status to FIGHTING, the next poll will resolve it.
+
 
 @login_required
 def select_opponent(request):

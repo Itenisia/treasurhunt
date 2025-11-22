@@ -16,6 +16,10 @@ class SiegeProfile(models.Model):
     gold = models.IntegerField(default=100)
     wins = models.IntegerField(default=0)
     losses = models.IntegerField(default=0)
+    
+    refusals_today = models.IntegerField(default=0)
+    last_refusal_date = models.DateField(null=True, blank=True)
+    default_army = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.gold} Or"
