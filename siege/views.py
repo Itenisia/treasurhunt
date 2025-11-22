@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.db import transaction
 from django.contrib import messages
-from .models import SiegeProfile, Battle, UNITS
+from .models import SiegeProfile, Battle, UnitType
 import json
 
 from django.utils import timezone
@@ -33,10 +33,12 @@ def hq(request):
         status='PREPARING'
     ).order_by('-created_at')
     
+    units = {u.slug: u for u in UnitType.objects.all()}
+    
     return render(request, 'siege/hq.html', {
         'profile': profile,
         'challenges': challenges,
-        'units': UNITS
+        'units': units
     })
 
 @login_required
@@ -70,9 +72,10 @@ def save_default_army(request):
         
         # Validate cost
         total_cost = 0
+        units_db = {u.slug: u for u in UnitType.objects.all()}
         for unit_key, count in units_selected.items():
-            if unit_key in UNITS:
-                total_cost += UNITS[unit_key]['cost'] * int(count)
+            if unit_key in units_db:
+                total_cost += units_db[unit_key].cost * int(count)
                 
         if total_cost > profile.gold:
              return JsonResponse({'status': 'error', 'message': 'Coût supérieur à votre or actuel !'}, status=400)
@@ -96,8 +99,10 @@ def auto_resolve_battle(battle):
         # Simple logic: try to buy default army
         cost = 0
         army = defender_profile.default_army
+        units_db = {u.slug: u for u in UnitType.objects.all()}
         for u, c in army.items():
-            cost += UNITS[u]['cost'] * c
+            if u in units_db:
+                cost += units_db[u].cost * c
             
         if defender_profile.gold >= cost:
             defender_profile.gold -= cost
@@ -197,7 +202,7 @@ def prepare_battle(request, battle_id):
     return render(request, 'siege/prepare.html', {
         'battle': battle,
         'profile': profile,
-        'units': UNITS
+        'units': {u.slug: u for u in UnitType.objects.all()}
     })
 
 @login_required
@@ -212,9 +217,10 @@ def submit_army(request, battle_id):
         
         # Calculer le coût total
         total_cost = 0
+        units_db = {u.slug: u for u in UnitType.objects.all()}
         for unit_key, count in units_selected.items():
-            if unit_key in UNITS:
-                total_cost += UNITS[unit_key]['cost'] * int(count)
+            if unit_key in units_db:
+                total_cost += units_db[unit_key].cost * int(count)
         
         if total_cost > profile.gold:
             return JsonResponse({'status': 'error', 'message': 'Pas assez d\'or !'}, status=400)
@@ -244,7 +250,8 @@ def submit_army(request, battle_id):
 @login_required
 def battle_room(request, battle_id):
     battle = get_object_or_404(Battle, pk=battle_id)
-    return render(request, 'siege/room.html', {'battle': battle, 'units_config': UNITS})
+    units_config = {u.slug: u for u in UnitType.objects.all()}
+    return render(request, 'siege/room.html', {'battle': battle, 'units_config': units_config})
 
 @login_required
 def battle_state(request, battle_id):
@@ -265,8 +272,9 @@ def battle_state(request, battle_id):
 
 def resolve_battle(battle):
     # Calcul de la puissance totale
-    attacker_power = sum(UNITS[u]['power'] * c for u, c in battle.attacker_units.items())
-    defender_power = sum(UNITS[u]['power'] * c for u, c in battle.defender_units.items())
+    units_db = {u.slug: u for u in UnitType.objects.all()}
+    attacker_power = sum(units_db[u].power * c for u, c in battle.attacker_units.items() if u in units_db)
+    defender_power = sum(units_db[u].power * c for u, c in battle.defender_units.items() if u in units_db)
     
     if attacker_power > defender_power:
         battle.winner = battle.attacker

@@ -36,10 +36,9 @@
 <script>
     const battleId = {{ battle.id }};
     const unitIcons = {
-        'peasant': '🧑‍🌾',
-        'archer': '🏹',
-        'knight': '⚔️',
-        'catapult': '☄️'
+        {% for slug, unit in units_config.items %}
+    '{{ slug }}': '{{ unit.emoji }}',
+        {% endfor %}
     };
 
     function pollState() {

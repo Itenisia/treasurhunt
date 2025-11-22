@@ -16,8 +16,7 @@
                 <div class="card-header text-center text-warning">{{ unit.name }}</div>
                 <div class="card-body text-center">
                     <div class="display-4 mb-2">
-                        {% if key == 'peasant' %}🧑‍🌾{% elif key == 'archer' %}🏹{% elif key == 'knight' %}⚔️{% elif
-                        key == 'catapult' %}☄️{% endif %}
+                        {{ unit.emoji }}
                     </div>
                     <p>Puissance : {{ unit.power }}</p>
                     <p class="text-warning">Coût : {{ unit.cost }} 💰</p>

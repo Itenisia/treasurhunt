@@ -3,13 +3,17 @@ from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-# Configuration des unités
-UNITS = {
-    'peasant': {'name': 'Paysan', 'cost': 10, 'power': 1},
-    'archer': {'name': 'Archer', 'cost': 30, 'power': 4},
-    'knight': {'name': 'Chevalier', 'cost': 80, 'power': 12},
-    'catapult': {'name': 'Catapulte', 'cost': 150, 'power': 25},
-}
+
+
+class UnitType(models.Model):
+    slug = models.SlugField(primary_key=True)
+    name = models.CharField(max_length=50)
+    cost = models.PositiveIntegerField()
+    power = models.PositiveIntegerField()
+    emoji = models.CharField(max_length=10, help_text="Representation (e.g. 🏹)")
+    
+    def __str__(self):
+        return f"{self.name} ({self.emoji})"
 
 class SiegeProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='siege_profile')
