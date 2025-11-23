@@ -72,11 +72,25 @@
 </style>
 
 <script>
+
     const battleId = {{ battle.id }};
     const isAttacker = {% if request.user == battle.attacker %}true{% else %} false{% endif %};
     const unitsConfig = {
         {% for slug, unit in units_config.items %}
     "{{ slug }}": { "emoji": "{{ unit.emoji }}", "name": "{{ unit.name }}" },
+    {% endfor %}
+    };
+
+    let placedUnits = {}; // Key: "x,y", Value: slug
+    let availableUnits = {
+        {% for unit_slug, count in units_available.items %}
+    "{{ unit_slug }}": { { count } },
+    {% endfor %}
+    };
+
+    const board = document.getElementById('board');
+    const unitContainer = document.getElementById('unit-container');
+    const confirmBtn = document.getElementById('confirm-placement');
 
     // Initialize Board
     for (let y = 0; y < 10; y++) {
@@ -86,7 +100,6 @@
             cell.dataset.x = x;
             cell.dataset.y = y;
 
-            // Determine valid zones
             // Attacker: Cols 0-2
             // Defender: Cols 7-9
             let isValid = false;
