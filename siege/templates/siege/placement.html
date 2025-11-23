@@ -77,19 +77,6 @@
     const unitsConfig = {
         {% for slug, unit in units_config.items %}
     "{{ slug }}": { "emoji": "{{ unit.emoji }}", "name": "{{ unit.name }}" },
-    {% endfor %}
-    };
-
-    let placedUnits = {}; // Key: "x,y", Value: slug
-    let availableUnits = {
-        {% for unit_slug, count in units_available.items %}
-    "{{ unit_slug }}": { { count } },
-    {% endfor %}
-    };
-
-    const board = document.getElementById('board');
-    const unitContainer = document.getElementById('unit-container');
-    const confirmBtn = document.getElementById('confirm-placement');
 
     // Initialize Board
     for (let y = 0; y < 10; y++) {

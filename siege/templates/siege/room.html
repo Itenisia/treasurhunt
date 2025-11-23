@@ -34,20 +34,6 @@
 
     const attackerLayout = {{ battle.attacker_layout| safe }}; // {"x,y": "slug"}
     const defenderLayout = {{ battle.defender_layout| safe }};
-
-    const unitsConfig = {
-        {% for slug, unit in units_config.items %}
-    "{{ slug }}": {
-        "emoji": "{{ unit.emoji }}",
-            "name": "{{ unit.name }}",
-                "power": { { unit.power } },
-        "hp": { { unit.power } } * 10, // Simple HP formula
-            "range": 1, // Melee default
-                "speed": 1
-    },
-    {% endfor %}
-    };
-
     // Initialize Units
     let units = [];
 
