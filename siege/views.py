@@ -302,8 +302,25 @@ def submit_army(request, battle_id):
 @login_required
 def battle_room(request, battle_id):
     battle = get_object_or_404(Battle, pk=battle_id)
-    units_config = {u.slug: u for u in UnitType.objects.all()}
-    return render(request, 'siege/room.html', {'battle': battle, 'units_config': units_config})
+    
+    # Prepare units config for JS
+    units_config = {}
+    for u in UnitType.objects.all():
+        units_config[u.slug] = {
+            'slug': u.slug,
+            'name': u.name,
+            'emoji': u.emoji,
+            'power': u.power,
+            'cost': u.cost,
+            # Inferred stats
+            'hp': u.cost, 
+            'range': 3 if u.slug == 'archer' else 1
+        }
+        
+    return render(request, 'siege/room.html', {
+        'battle': battle, 
+        'units_config_json': json.dumps(units_config)
+    })
 
 @login_required
 def battle_state(request, battle_id):

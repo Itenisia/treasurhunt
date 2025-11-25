@@ -1,0 +1,171 @@
+﻿.venv\Scripts\python 
+: Creating test 
+database for alias 
+'default'...
+Au caractère Ligne:1 
+: 1
++ 
+.venv\Scripts\python 
+manage.py test game.te
+sts.TreasureHuntFlowTe
+sts. ...
++ ~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (Creating t   
+ est d...as 'defau    
+lt'...:String) []    
+, RemoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+
+E
+======================
+======================
+======================
+====
+ERROR: test_import_hun
+t_from_xlsx (game.test
+s.TreasureHuntFlowTest
+s.test_import_hunt_fro
+m_xlsx)
+----------------------
+----------------------
+----------------------
+----
+Traceback (most 
+recent call last):
+  File "C:\Users\ornit
+\Documents\testia\trea
+surehunt\game\tests.py
+", line 160, in test_i
+mport_hunt_from_xlsx
+    os.remove(path)
+    ~~~~~~~~~^^^^^^
+PermissionError: 
+[WinError 32] Le 
+processus ne peut pas 
+acc�der au fichier 
+car ce fichier est 
+utilis� par un autre 
+processus: 'C:\\Users\
+\ornit\\AppData\\Local
+\\Temp\\tmp5vt_s08o/hu
+nt.xlsx'
+
+During handling of 
+the above exception, 
+another exception 
+occurred:
+
+Traceback (most 
+recent call last):
+  File "C:\Python314\L
+ib\shutil.py", line 
+701, in _rmtree_unsafe
+    
+os.unlink(fullname)
+    
+~~~~~~~~~^^^^^^^^^^
+PermissionError: 
+[WinError 32] Le 
+processus ne peut pas 
+acc�der au fichier 
+car ce fichier est 
+utilis� par un autre 
+processus: 'C:\\Users\
+\ornit\\AppData\\Local
+\\Temp\\tmp5vt_s08o\\h
+unt.xlsx'
+
+During handling of 
+the above exception, 
+another exception 
+occurred:
+
+Traceback (most 
+recent call last):
+  File "C:\Users\ornit
+\Documents\testia\trea
+surehunt\game\tests.py
+", line 149, in test_i
+mport_hunt_from_xlsx
+    with 
+TemporaryDirectory() 
+as tmp:
+         
+~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\L
+ib\tempfile.py", line 
+971, in __exit__
+    self.cleanup()
+    ~~~~~~~~~~~~^^
+  File "C:\Python314\L
+ib\tempfile.py", line 
+975, in cleanup
+    self._rmtree(self.
+name, ignore_errors=se
+lf._ignore_cleanup_err
+ors)
+    ~~~~~~~~~~~~^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
+^^^^
+  File "C:\Python314\L
+ib\tempfile.py", line 
+955, in _rmtree
+    
+_shutil.rmtree(name, 
+onexc=onexc)
+    ~~~~~~~~~~~~~~^^^^
+^^^^^^^^^^^^^^^
+  File "C:\Python314\L
+ib\shutil.py", line 
+852, in rmtree
+    
+_rmtree_impl(path, 
+dir_fd, onexc)
+    ~~~~~~~~~~~~^^^^^^
+^^^^^^^^^^^^^^^
+  File "C:\Python314\L
+ib\shutil.py", line 
+705, in _rmtree_unsafe
+    onexc(os.unlink, 
+fullname, err)
+    ~~~~~^^^^^^^^^^^^^
+^^^^^^^^^^^^^
+  File "C:\Python314\L
+ib\tempfile.py", line 
+930, in onexc
+    _os.unlink(path)
+    ~~~~~~~~~~^^^^^^
+PermissionError: 
+[WinError 32] Le 
+processus ne peut pas 
+acc�der au fichier 
+car ce fichier est 
+utilis� par un autre 
+processus: 'C:\\Users\
+\ornit\\AppData\\Local
+\\Temp\\tmp5vt_s08o\\h
+unt.xlsx'
+
+----------------------
+----------------------
+----------------------
+----
+Ran 1 test in 1.849s
+
+FAILED (errors=1)
+Destroying test 
+database for alias 
+'default'...
+
+Found 1 test(s).
+System check identified no issues (0 silenced).
+Chasse cr��e : Import Hunt (2 �tapes)

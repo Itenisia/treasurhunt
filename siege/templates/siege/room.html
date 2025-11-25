@@ -32,8 +32,10 @@
     const CELL_SIZE = 60;
     const GRID_SIZE = 10;
 
+    const unitsConfig = {{ units_config_json| safe }};
     const attackerLayout = {{ battle.attacker_layout| safe }}; // {"x,y": "slug"}
     const defenderLayout = {{ battle.defender_layout| safe }};
+
     // Initialize Units
     let units = [];
 

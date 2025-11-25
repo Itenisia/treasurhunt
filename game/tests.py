@@ -156,6 +156,10 @@ class TreasureHuntFlowTests(TestCase):
             wb.save(path)
 
             call_command("import_hunt_xlsx", path)
+            import os
+            import gc
+            gc.collect()
+            os.remove(path)
 
         hunt = Hunt.objects.get(title="Import Hunt")
         steps = list(hunt.steps.order_by("order"))

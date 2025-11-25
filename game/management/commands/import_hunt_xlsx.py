@@ -23,7 +23,7 @@ class Command(BaseCommand):
         if not os.path.isfile(path):
             raise CommandError(f"Fichier introuvable : {path}")
 
-        wb = load_workbook(path)
+        wb = load_workbook(path, read_only=True, data_only=True)
         sheet = wb.active
 
         def normalized_row(cells):
@@ -70,4 +70,5 @@ class Command(BaseCommand):
                 created_steps += 1
                 next_order = max(next_order, order + 1)
 
+        wb.close()
         self.stdout.write(self.style.SUCCESS(f"Chasse créée : {hunt.title} ({created_steps} étapes)"))
