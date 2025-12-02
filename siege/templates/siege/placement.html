@@ -1,5 +1,9 @@
-{% extends 'base.html' %}
+{% extends 'game/base.html' %}
 {% load siege_extras %}
+
+{% block extra_head %}
+<script src="https://cdn.tailwindcss.com"></script>
+{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
@@ -73,7 +77,7 @@
 </style>
 
 <script>
-
+    console.log("Placement script starting...");
     const battleId = {{ battle.id }};
     const isAttacker = {% if request.user == battle.attacker %}true{% else %} false{% endif %};
     const unitsConfig = {

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Replay combat</title>
+  <style>
+    :root { --bg:#0b1021; --card:#111833; --accent:#6cf; --text:#e9ecf4; --muted:#9da4c9; --hit:#f76; --crit:#ffda6c; }
+    body { margin:0; font-family:"Segoe UI",sans-serif; background:linear-gradient(135deg,#0b1021 0%,#0f1936 60%,#0b1021); color:var(--text); }
+    header { padding:16px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.05);}
+    h1 { margin:0; }
+    .layout { padding:20px; display:grid; grid-template-columns: 280px 1fr; gap:14px; }
+    .card { background:var(--card); border-radius:14px; padding:14px 16px; border:1px solid rgba(255,255,255,0.08); box-shadow:0 8px 22px rgba(0,0,0,0.35); }
+    .muted { color:var(--muted); font-size:13px; }
+    .grid { display:grid; grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(10, 52px); gap:6px; }
+    .cell { border:1px dashed #1d2544; border-radius:10px; position:relative; background: rgba(255,255,255,0.02);}
+    .token { position:absolute; inset:4px; border-radius:10px; padding:6px; background:rgba(108,255,255,0.12); border:1px solid rgba(108,255,255,0.4); display:flex; align-items:center; justify-content:center; font-size:13px; text-align:center;}
+    .token.attacker { background:rgba(108,255,255,0.12); border-color:rgba(108,255,255,0.4);}
+    .token.defender { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.35);}
+    .hit { animation: hit 0.4s ease; }
+    .crit { box-shadow:0 0 12px var(--crit); }
+    @keyframes hit { from { transform:scale(1.05); background:rgba(247,118,118,0.35);} to { transform:scale(1); background:inherit; } }
+    .controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    button { padding:8px 12px; border:none; border-radius:10px; background:var(--accent); color:#041126; font-weight:700; cursor:pointer;}
+    input[type=range] { width:120px; }
+    .pill { padding:4px 8px; border-radius:12px; background: rgba(255,255,255,0.08); display:inline-block; font-size:12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="muted">Replay</div>
+      <h1>Combat #{{ battle_id }}</h1>
+    </div>
+    <a href="/" style="color:var(--accent);text-decoration:none;">← Retour</a>
+  </header>
+  <div class="layout">
+    <div class="card">
+      <div class="muted">Attaquant : {{ attacker }} | Défenseur : {{ defender }}</div>
+      <div style="margin-top:6px;">
+        <div class="pill">Vainqueur : {{ winner|default:"Égalité" }}</div>
+        <div class="pill">Récompense : {{ reward }}</div>
+      </div>
+      <div style="margin-top:12px;" class="controls">
+        <button id="play-pause">▶️</button>
+        <button id="step-back">⏪</button>
+        <button id="step-forward">⏩</button>
+        <label class="muted">Vitesse <input type="range" id="speed" min="0.5" max="3" step="0.5" value="1"> <span id="speed-label">1x</span></label>
+        <div class="pill">t=<span id="time-label">0</span>s / {{ rounds }}</div>
+      </div>
+      <div style="margin-top:10px;" class="muted">Logs détaillés : déplacements, attaques (crit/aoe), esquives, morts.</div>
+    </div>
+    <div class="card">
+      <div class="grid" id="grid"></div>
+    </div>
+  </div>
+
+  <div style="padding: 0 20px 20px;">
+    <div class="card">
+      <h3 style="margin-top:0;">Journal</h3>
+      <div id="event-log" style="max-height:260px; overflow:auto; font-family:monospace; font-size:13px; line-height:1.4;">
+      </div>
+    </div>
+  </div>
+
+  {{ log|json_script:"log-data" }}
+  {{ initial_positions|json_script:"init-data" }}
+  <script>
+    const logData = JSON.parse(document.getElementById("log-data").textContent || "[]");
+    const initData = JSON.parse(document.getElementById("init-data").textContent || "{}");
+    const gridEl = document.getElementById("grid");
+    const timeLabel = document.getElementById("time-label");
+    const speedRange = document.getElementById("speed");
+    const speedLabel = document.getElementById("speed-label");
+    let currentTime = 0;
+    let playing = false;
+    let timer = null;
+
+    function key(unitName, side, idx) { return `${side}-${unitName}-${idx}`; }
+
+    const tokens = {};
+    const eventLogEl = document.getElementById("event-log");
+    function initGrid() {
+      gridEl.innerHTML = "";
+      for (let y=0;y<10;y++){
+        for (let x=0;x<10;x++){
+          const cell = document.createElement("div");
+          cell.className="cell";
+          cell.dataset.x=x; cell.dataset.y=y;
+          gridEl.appendChild(cell);
+        }
+      }
+      ["attacker","defender"].forEach(side => {
+        (initData[side] || []).forEach((u) => {
+          if (u.x === null || u.y === null) return;
+          const token = document.createElement("div");
+          token.className = `token ${side}`;
+          token.textContent = `${u.unit_name}`;
+          token.dataset.side = side;
+          token.dataset.name = u.unit_name;
+          tokens[u.id] = {el: token, x: u.x, y: u.y};
+          placeToken(token, u.x, u.y);
+        });
+      });
+    }
+
+    function placeToken(el, x, y) {
+      const cell = gridEl.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
+      if (cell) {
+        el.style.left = "0"; el.style.top="0"; el.style.right="0"; el.style.bottom="0";
+        cell.appendChild(el);
+      }
+    }
+
+    function applyEvent(ev) {
+      if (ev.type === "move") {
+        const tok = tokens[ev.unit_id];
+        if (!tok || !tok.el) return;
+        tok.x = ev.to.x; tok.y = ev.to.y;
+        placeToken(tok.el, tok.x, tok.y);
+        appendLog(`[${ev.t}s] ${ev.unit_name} (${ev.side}) se déplace ${ev.from.x},${ev.from.y} -> ${ev.to.x},${ev.to.y}`);
+      }
+      if (ev.type === "attack" && ev.targets) {
+        ev.targets.forEach(t => {
+          const tok = tokens[t.defender_id];
+          if (!tok || !tok.el) return;
+          if (t.killed) {
+            tok.el.remove();
+            delete tokens[t.defender_id];
+            appendLog(`[${ev.t}s] ${ev.attacker} (${ev.attacker_side}) tue ${t.defender} (${t.dmg} dégâts).`);
+            return;
+          }
+          if (t.dodge) {
+            appendLog(`[${ev.t}s] ${t.defender} esquive l'attaque de ${ev.attacker}.`);
+            return;
+          }
+          tok.el.classList.add("hit");
+          if (t.crit || ev.crit) tok.el.classList.add("crit");
+          tok.el.textContent = `${t.defender} (${t.last_unit_hp} PV)`;
+          setTimeout(()=>{ tok.el.classList.remove("hit"); tok.el.classList.remove("crit"); }, 400);
+          appendLog(`[${ev.t}s] ${ev.attacker} (${ev.attacker_side}) frappe ${t.defender} : dégâts=${t.dmg}, PV restants=${t.last_unit_hp}${t.crit || ev.crit ? " (critique)" : ""}`);
+        });
+      }
+      if (ev.type === "status") {
+        appendLog(`[${ev.t}s] état: att=${ev.attacker_alive} / déf=${ev.defender_alive}`);
+      }
+    }
+
+    function appendLog(text) {
+      if (!eventLogEl) return;
+      const div = document.createElement("div");
+      div.textContent = text;
+      eventLogEl.appendChild(div);
+      eventLogEl.scrollTop = eventLogEl.scrollHeight;
+    }
+
+    function renderUntil(t) {
+      initGrid();
+      eventLogEl.innerHTML = "";
+      const events = logData.filter(e => e.t <= t).sort((a,b)=>a.t-b.t);
+      events.forEach(ev => applyEvent(ev));
+      timeLabel.textContent = t;
+    }
+
+    function tick() {
+      if (!playing) return;
+      const speed = parseFloat(speedRange.value || "1");
+      currentTime += 1;
+      renderUntil(currentTime);
+      if (currentTime >= {{ rounds }}) {
+        playing = false;
+        return;
+      }
+      timer = setTimeout(tick, 1000 / speed);
+    }
+
+    document.getElementById("play-pause").onclick = () => {
+      playing = !playing;
+      if (playing) tick();
+    };
+    document.getElementById("step-forward").onclick = () => {
+      currentTime = Math.min({{ rounds }}, currentTime + 1);
+      renderUntil(currentTime);
+    };
+    document.getElementById("step-back").onclick = () => {
+      currentTime = Math.max(0, currentTime - 1);
+      renderUntil(currentTime);
+    };
+    speedRange.oninput = () => { speedLabel.textContent = speedRange.value + "x"; };
+
+    initGrid();
+  </script>
+</body>
+</html>

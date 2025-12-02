@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Placement des armées</title>
+  <style>
+    :root { --bg:#0b1021; --card:#111833; --accent:#6cf; --text:#e9ecf4; --muted:#9da4c9; --grid:#1d2544; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: "Segoe UI", sans-serif; background: linear-gradient(135deg, #0b1021 0%, #0f1936 60%, #0b1021); color: var(--text); }
+    header { padding: 18px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.05); }
+    h1 { margin:0; }
+    .layout { padding:20px; display:grid; grid-template-columns: 320px 1fr; gap:16px; }
+    .card { background: var(--card); border-radius: 14px; padding: 14px 16px; border:1px solid rgba(255,255,255,0.05); box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+    .muted { color: var(--muted); }
+    select, input { width:100%; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:#0d1329; color: var(--text); }
+    button { padding:10px 14px; border:none; border-radius:10px; background: var(--accent); color:#041126; font-weight:700; cursor:pointer; }
+    button:disabled { opacity:0.5; cursor:not-allowed; }
+    .grid { display:grid; grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(10, 52px); gap:6px; }
+    .cell { border:1px dashed var(--grid); border-radius:10px; position:relative; background: rgba(255,255,255,0.02); }
+    .cell.highlight { border-color: var(--accent); }
+    .token { background: rgba(108,255,255,0.12); border:1px solid rgba(108,255,255,0.4); color: var(--text); padding:6px 8px; border-radius:8px; font-size:13px; margin:3px; display:inline-block; cursor:grab; }
+    .token.defender { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.35); cursor:default; }
+    .reserve { display:flex; flex-wrap:wrap; gap:6px; padding:8px; min-height:64px; border:1px dashed rgba(255,255,255,0.2); border-radius:10px; }
+    .pill { padding:4px 8px; border-radius:12px; background: rgba(255,255,255,0.08); display:inline-block; font-size:12px; }
+    .toolbar { display:flex; flex-direction:column; gap:10px; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .message { margin-top:10px; padding:10px; border-radius:10px; background: rgba(108,255,255,0.08); border:1px solid rgba(108,255,255,0.4); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="muted" style="font-size:12px;">Placement 10×10</div>
+      <h1>Positionner les unités</h1>
+    </div>
+    <a href="/" style="color:var(--accent);text-decoration:none;">← Retour tableau de bord</a>
+  </header>
+
+  <div class="layout">
+    <div class="card toolbar">
+      <div>
+        <label class="muted" for="army-select">Armée</label>
+        <form method="get">
+          <select id="army-select" name="army" onchange="this.form.submit()">
+            {% for army in armies %}
+              <option value="{{ army.id }}" {% if selected_army and army.id == selected_army.id %}selected{% endif %}>{{ army.name }} — {{ army.commander.name }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+      <div class="row">
+        <div class="pill">Colonnes 0-1 : Attaque</div>
+        <div class="pill">Colonnes 8-9 : Défense</div>
+      </div>
+      <div class="row">
+        <label class="muted">Mode</label>
+        <div class="row">
+          <label><input type="radio" name="mode" value="defense" {% if mode != 'attack' %}checked{% endif %}> Défense</label>
+          <label><input type="radio" name="mode" value="attack" {% if mode == 'attack' %}checked{% endif %}> Attaque</label>
+        </div>
+      </div>
+      <div id="attack-tools" style="display:none;">
+        <div class="muted" style="margin-bottom:4px;">Presets d'attaque (max 3)</div>
+        <select id="preset-select" style="margin-bottom:8px;">
+          <option value="">-- Sélectionner --</option>
+          {% for name in presets %}
+            <option value="{{ name }}">{{ name }}</option>
+          {% endfor %}
+        </select>
+        <input id="preset-name" type="text" placeholder="Nom du preset (ex: Flèche)" />
+        <button id="save-preset" style="margin-top:6px;">Sauvegarder le preset</button>
+      </div>
+      <div>
+        <div class="muted" style="margin-bottom:4px;">Réserve (unités non placées)</div>
+        <div id="reserve" class="reserve"></div>
+      </div>
+      <div id="message" class="message" style="display:none;"></div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div class="muted">Glissez-déposez les unités sur la grille</div>
+        <div class="pill" id="mode-label">Mode défense</div>
+      </div>
+      <div class="grid" id="grid"></div>
+      {% if defender_army %}
+      <div style="margin-top:12px;">
+        <div class="muted">Placement défense de {{ defender_army.name }} ({{ defender_army.commander.name }})</div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
+          {% for du in defender_units %}
+            {% if du.defense_position.x is not None %}
+              <span class="pill">{{ du.unit_name }} ({{ du.defense_position.x }},{{ du.defense_position.y }})</span>
+            {% else %}
+              <span class="pill">{{ du.unit_name }} (réserve)</span>
+            {% endif %}
+          {% empty %}
+            <span class="muted">Pas de placement connu.</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      <div style="margin-top:12px; display:flex; gap:10px; justify-content:flex-end; align-items:center; flex-wrap:wrap;">
+        <label class="muted" style="display:flex; align-items:center; gap:6px; font-size:12px;">
+          <input type="checkbox" id="stay-home-placement" checked> Rester sur l'accueil après combat
+        </label>
+        <button id="save-attack" style="display:none;">Sauvegarder attaque</button>
+        <button id="save-launch" style="display:none;">Sauvegarder & lancer le combat</button>
+      </div>
+    </div>
+  </div>
+
+  {{ defender_units|json_script:"defender-data" }}
+
+  <script>
+    const armyId = {% if selected_army %}{{ selected_army.id }}{% else %}null{% endif %};
+    const defenderId = {% if defender_army %}{{ defender_army.id }}{% else %}null{% endif %};
+    const defenderDataEl = document.getElementById('defender-data');
+    const defenderUnits = defenderDataEl ? JSON.parse(defenderDataEl.textContent) : [];
+    const afterBattle = {{ after_battle_flag|yesno:"true,false" }};
+    let mode = document.querySelector('input[name="mode"]:checked')?.value || 'defense';
+    let units = [];
+    let presets = [{% for name in presets %}"{{ name }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+    let activePreset = "";
+
+    const gridEl = document.getElementById('grid');
+    const reserveEl = document.getElementById('reserve');
+    const msgEl = document.getElementById('message');
+    const presetSelect = document.getElementById('preset-select');
+    const presetNameInput = document.getElementById('preset-name');
+    const attackTools = document.getElementById('attack-tools');
+    const modeLabel = document.getElementById('mode-label');
+    const saveAttackBtn = document.getElementById('save-attack');
+    const saveLaunchBtn = document.getElementById('save-launch');
+
+    function showMessage(text, isError=false) {
+      msgEl.textContent = text;
+      msgEl.style.display = text ? 'block' : 'none';
+      msgEl.style.borderColor = isError ? 'rgba(255,120,120,0.4)' : 'rgba(108,255,255,0.4)';
+      msgEl.style.background = isError ? 'rgba(255,120,120,0.08)' : 'rgba(108,255,255,0.08)';
+    }
+
+    function allowedColumn(x) {
+      return mode === 'defense' ? (x === 8 || x === 9) : (x === 0 || x === 1);
+    }
+
+    function renderGrid() {
+      gridEl.innerHTML = '';
+      reserveEl.innerHTML = '';
+      for (let y=0; y<10; y++) {
+        for (let x=0; x<10; x++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.x = x;
+          cell.dataset.y = y;
+          if (allowedColumn(x)) cell.classList.add('highlight');
+          cell.addEventListener('dragover', ev => ev.preventDefault());
+          cell.addEventListener('drop', onDropCell);
+          gridEl.appendChild(cell);
+        }
+      }
+      units.forEach(u => {
+        const pos = mode === 'defense' ? u.defense_position : u.attack_position;
+        const token = document.createElement('div');
+        token.className = 'token';
+        token.draggable = true;
+        token.dataset.id = u.id;
+        token.textContent = `${u.unit_name}`;
+        token.addEventListener('dragstart', ev => {
+          ev.dataTransfer.setData('text/plain', u.id);
+        });
+        if (pos && pos.x !== null && pos.x !== undefined && pos.y !== null && pos.y !== undefined) {
+          const cell = gridEl.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"]`);
+          if (cell) cell.appendChild(token);
+        } else {
+          reserveEl.appendChild(token);
+        }
+      });
+      if (defenderId && mode === 'attack') {
+        defenderUnits.forEach(du => {
+          const pos = du.defense_position;
+          if (!pos || pos.x === null || pos.y === null) return;
+          const ghost = document.createElement('div');
+          ghost.className = 'token defender';
+          ghost.textContent = `${du.unit_name}`;
+          const cell = gridEl.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"]`);
+          if (cell) cell.appendChild(ghost);
+        });
+      }
+    }
+
+    function onDropCell(ev) {
+      ev.preventDefault();
+      const unitId = parseInt(ev.dataTransfer.getData('text/plain'), 10);
+      const x = parseInt(ev.currentTarget.dataset.x, 10);
+      const y = parseInt(ev.currentTarget.dataset.y, 10);
+      if (!allowedColumn(x)) { showMessage("Zone non autorisée pour ce mode.", true); return; }
+      const idx = units.findIndex(u => u.id === unitId);
+      if (idx === -1) return;
+      if (mode === 'defense') {
+        units[idx].defense_position = {x, y};
+        saveDefense();
+      } else {
+        units[idx].attack_position = {x, y};
+      }
+      renderGrid();
+    }
+
+    reserveEl.addEventListener('dragover', ev => ev.preventDefault());
+    reserveEl.addEventListener('drop', ev => {
+      ev.preventDefault();
+      const unitId = parseInt(ev.dataTransfer.getData('text/plain'), 10);
+      const idx = units.findIndex(u => u.id === unitId);
+      if (idx === -1) return;
+      if (mode === 'defense') units[idx].defense_position = {x:null, y:null};
+      else units[idx].attack_position = {x:null, y:null};
+      renderGrid();
+      if (mode === 'defense') saveDefense();
+    });
+
+    function payloadPositions(forMode) {
+      return units
+        .map(u => {
+          const pos = forMode === 'defense' ? u.defense_position : u.attack_position;
+          if (!pos || pos.x === null || pos.y === null) return null;
+          return { army_unit_id: u.id, x: pos.x, y: pos.y };
+        })
+        .filter(Boolean);
+    }
+
+    function saveDefense() {
+      fetch(`/api/armies/${armyId}/placement/`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({mode:'defense', positions: payloadPositions('defense')})
+      }).then(r => r.json()).then(data => {
+        if (data.error) showMessage(data.error, true); else showMessage("Défense enregistrée.");
+      }).catch(() => showMessage("Erreur lors de l'enregistrement", true));
+    }
+
+    document.getElementById('save-preset').addEventListener('click', () => {
+      const name = presetNameInput.value.trim() || presetSelect.value;
+      if (!name) { showMessage("Nom du preset requis.", true); return; }
+      fetch(`/api/armies/${armyId}/attack-presets/`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({name, positions: payloadPositions('attack')})
+      }).then(r => r.json()).then(data => {
+        if (data.error) { showMessage(data.error, true); return; }
+        showMessage(`Preset "${data.name}" sauvegardé.`);
+        if (!presets.includes(data.name)) {
+          presets.push(data.name);
+          const opt = document.createElement('option');
+          opt.value = data.name; opt.textContent = data.name;
+          presetSelect.appendChild(opt);
+        }
+        presetSelect.value = data.name;
+        activePreset = data.name;
+      }).catch(() => showMessage("Erreur de sauvegarde", true));
+    });
+
+    presetSelect.addEventListener('change', () => {
+      activePreset = presetSelect.value;
+      loadData();
+    });
+
+    document.querySelectorAll('input[name="mode"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        mode = radio.value;
+        attackTools.style.display = mode === 'attack' ? 'block' : 'none';
+        modeLabel.textContent = mode === 'attack' ? 'Mode attaque' : 'Mode défense';
+        if (saveAttackBtn) saveAttackBtn.style.display = mode === 'attack' ? 'inline-block' : 'none';
+        if (saveLaunchBtn) saveLaunchBtn.style.display = (mode === 'attack' && defenderId && afterBattle) ? 'inline-block' : 'none';
+        loadData();
+      });
+    });
+
+    function loadData() {
+      if (!armyId) return;
+      const url = new URL(`/api/armies/${armyId}/placement/`, window.location.origin);
+      url.searchParams.set('mode', mode);
+      if (mode === 'attack' && activePreset) url.searchParams.set('preset', activePreset);
+      fetch(url)
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) { showMessage(data.error, true); return; }
+          units = data.units || [];
+          if (data.presets) {
+            presets = data.presets;
+            presetSelect.innerHTML = '<option value="">-- Sélectionner --</option>';
+            presets.forEach(name => {
+              const opt = document.createElement('option');
+              opt.value = name; opt.textContent = name;
+              presetSelect.appendChild(opt);
+            });
+            if (presets.includes(activePreset)) presetSelect.value = activePreset;
+          }
+          showMessage("");
+          renderGrid();
+        })
+        .catch(() => showMessage("Erreur de chargement", true));
+    }
+
+    function saveAttackPositions(name) {
+      return fetch(`/api/armies/${armyId}/attack-presets/`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({name: name || "__auto__", positions: payloadPositions('attack')})
+      }).then(r => r.json());
+    }
+
+    function launchBattle() {
+      if (!armyId || !defenderId) return;
+      const stayHome = document.getElementById('stay-home-placement')?.checked;
+      saveAttackPositions("__auto__").then(data => {
+        if (data.error) { showMessage(data.error, true); return; }
+        fetch('/api/challenges/', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({attacker_id: armyId, defender_id: defenderId})
+        }).then(r => r.json()).then(res => {
+          if (res.error) { showMessage(res.error, true); return; }
+          showMessage(`Combat lancé. Vainqueur: ${res.winner || 'égalité'} (+${res.winner_reward} or).`);
+          setTimeout(() => { window.location.href = stayHome ? '/' : `/replay/${res.battle_id}/`; }, 800);
+        }).catch(() => showMessage("Erreur lors du combat", true));
+      }).catch(() => showMessage("Erreur de sauvegarde", true));
+    }
+
+    if (saveAttackBtn && saveLaunchBtn) {
+      saveAttackBtn.addEventListener('click', () => {
+        saveAttackPositions().then(data => {
+          if (data.error) { showMessage(data.error, true); return; }
+          showMessage(`Attaque sauvegardée (${data.name}).`);
+        }).catch(() => showMessage("Erreur de sauvegarde", true));
+      });
+      saveLaunchBtn.addEventListener('click', launchBattle);
+    }
+
+    attackTools.style.display = mode === 'attack' ? 'block' : 'none';
+    saveAttackBtn.style.display = mode === 'attack' ? 'inline-block' : 'none';
+    saveLaunchBtn.style.display = (mode === 'attack' && defenderId && afterBattle) ? 'inline-block' : 'none';
+    loadData();
+  </script>
+</body>
+</html>

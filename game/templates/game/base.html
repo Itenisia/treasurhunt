@@ -8,6 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     {% load static %}
     <link href="{% static 'game/css/style.css' %}" rel="stylesheet">
+    {% block extra_head %}{% endblock %}
 </head>
 
 <body>
@@ -22,7 +23,7 @@
                 <a class="nav-link text-white" href="{% url 'game:leaderboard' hunt.id %}">Classement</a>
                 {% endif %}
                 <a class="nav-link text-warning" href="{% url 'chat:room' %}">📜 Canal de Quête</a>
-                <a class="nav-link text-danger" href="{% url 'siege:hq' %}">🏰 Siège</a>
+                <a class="nav-link text-danger" href="/siege/">🏰 Siège</a>
                 <span class="navbar-text text-white">{{ user.username }}</span>
                 <a class="btn btn-outline-light btn-sm" href="{% url 'logout' %}?next=/">Déconnexion</a>
                 {% else %}

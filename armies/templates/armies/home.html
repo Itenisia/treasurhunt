@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Armées – Tableau de bord</title>
+  <style>
+    :root { --bg:#0b1021; --card:#121933; --accent:#6cf; --text:#e9ecf4; --muted:#9da4c9; --danger:#f66; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", sans-serif; background: radial-gradient(circle at 20% 20%, #18244d, #0b1021 50%), #0b1021; color: var(--text); }
+    header { padding: 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    h1 { margin: 0; font-weight: 700; letter-spacing: 0.5px; }
+    .layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; padding: 20px; }
+    .card { background: var(--card); border-radius: 14px; padding: 16px 18px; border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 10px 25px rgba(0,0,0,0.35); }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    select, input { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: #0d1328; color: var(--text); }
+    button { padding: 10px 14px; border: none; border-radius: 10px; background: var(--accent); color: #041126; font-weight: 700; cursor: pointer; transition: transform 0.1s ease; }
+    button:hover { transform: translateY(-1px); }
+    table { width: 100%; border-collapse: collapse; color: var(--text); font-size: 14px; }
+    th, td { padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    .muted { color: var(--muted); }
+    .pill { padding: 4px 8px; border-radius: 12px; background: rgba(255,255,255,0.08); display: inline-block; font-size: 12px; }
+    .stack { display: grid; gap: 4px; }
+    .message { margin-top: 12px; padding: 12px; border-radius: 10px; background: rgba(108,255,255,0.08); border: 1px solid rgba(108,255,255,0.4); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="muted" style="font-size:12px;">Tableau de bord</div>
+      <h1>Gestion d'armées</h1>
+    </div>
+    {% if commander_ready %}
+      <div class="pill">Or : {{ selected_commander.gold }}</div>
+    {% endif %}
+  </header>
+
+  <div class="layout">
+    <div class="card">
+      {% if not is_authenticated %}
+        <div class="stack">
+          <div class="muted">Connectez-vous via le site principal pour accéder à cette section.</div>
+          <a href="/accounts/login/?next=/siege/" style="color:var(--accent);text-decoration:none;">Aller à la connexion</a>
+        </div>
+      {% elif needs_commander %}
+        <div class="stack">
+          <h3 style="margin:0 0 6px;">Choisissez votre faction</h3>
+          <p class="muted" style="margin:0;">La première visite crée votre commandant rattaché à votre compte du site.</p>
+          <form method="post" style="display:grid; gap:10px; margin-top:8px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="init_commander">
+            <div>
+              <label>Nom du commandant</label>
+              <input name="commander_name" value="{{ default_commander_name }}" required>
+            </div>
+            <div>
+              <label>Faction</label>
+              <select name="faction_id" required>
+                <option value="">Choisir...</option>
+                {% for f in factions %}
+                  <option value="{{ f.id }}">{{ f.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <button type="submit" style="width:100%;">Créer mon commandant</button>
+          </form>
+        </div>
+      {% elif needs_faction_choice %}
+        <div class="stack">
+          <h3 style="margin:0 0 6px;">Sélectionnez votre faction</h3>
+          <p class="muted" style="margin:0;">Une faction doit être fixée avant de gérer les armées.</p>
+          <form method="post" style="display:grid; gap:10px; margin-top:8px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="choose_faction">
+            <div>
+              <label>Faction</label>
+              <select name="faction_id" required>
+                <option value="">Choisir...</option>
+                {% for f in factions %}
+                  <option value="{{ f.id }}">{{ f.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <button type="submit" style="width:100%;">Valider la faction</button>
+          </form>
+        </div>
+      {% else %}
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div class="pill">Connecté : {{ request.user.username }}</div>
+          <div class="pill">Commandant : {{ selected_commander.name }}</div>
+          <div class="pill">Faction : {% if user_faction %}{{ user_faction.name }}{% else %}-{% endif %}</div>
+          <div class="pill">Or : {{ selected_commander.gold }}</div>
+          <div class="pill">Cap population : {{ selected_commander.pop_cap }}</div>
+          <div class="muted" style="font-size:12px;">Pour changer d'utilisateur, utilisez la déconnexion du site.</div>
+        </div>
+      {% endif %}
+      {% if message %}
+        <div class="message">{{ message }}</div>
+      {% endif %}
+      <div style="margin-top: 18px;">
+        <div class="muted">Note : un compte = un commandant, faction verrouillée après choix initial.</div>
+      </div>
+    </div>
+
+    {% if commander_ready %}
+    <div class="card">
+      <h3 style="margin-top:0;">Défier un joueur</h3>
+      <p class="muted" style="margin-top:0;">Récompense auto : 20% de la valeur de l'armée vaincue pour le gagnant, 10% de celle du gagnant pour le perdant.</p>
+      <form method="post" id="challenge-form">
+        {% csrf_token %}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label for="attacker_id">Armée attaquante</label>
+            <select name="attacker_id" id="attacker_id">
+              {% for army in armies_owned %}
+                <option value="{{ army.id }}">{{ army.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label for="defender_id">Armée à défier</label>
+            <select name="defender_id" id="defender_id">
+              {% for army in other_armies %}
+                <option value="{{ army.id }}">{{ army.name }} — {{ army.commander.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+          <label style="display:flex; align-items:center; gap:6px; font-size:12px;">
+            <input type="checkbox" id="stay-home" checked> Rester sur l'accueil après combat
+          </label>
+          <button type="button" id="place-first">Placer avant combat</button>
+          <button type="submit">Lancer le combat</button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if commander_ready %}
+  <div style="padding: 0 20px 20px;">
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+        <h3 style="margin:0;">Armées de {% if selected_commander %}{{ selected_commander.name }}{% else %}—{% endif %}</h3>
+        <form method="get" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <input type="text" name="unit_filter" placeholder="Filtrer unités" value="{{ unit_filter }}" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:#0d1328;color:var(--text);">
+          <input type="text" name="upgrade_filter" placeholder="Filtrer upgrades" value="{{ upgrade_filter }}" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:#0d1328;color:var(--text);">
+          <button type="submit">Filtrer</button>
+        </form>
+        <form method="post" style="display:flex; gap:8px; align-items:center;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_army">
+          <input type="text" name="army_name" placeholder="Nom de l'armée" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:#0d1328;color:var(--text);" />
+          <button type="submit">Créer armée</button>
+        </form>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Armée</th><th>Composition</th><th>Upgrades</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for army in armies_owned %}
+            <tr>
+              <td>{{ army.name }}</td>
+              <td>
+                <div class="stack">
+                  <span class="pill muted">Pop {{ army.pop_used }}/{{ army.pop_cap }}</span>
+                  {% for stack in army.units.all %}
+                    <span class="pill">{{ stack.unit_type.name }}{% if stack.position_x is not None %} ({{ stack.position_x }},{{ stack.position_y }}){% endif %}</span>
+                  {% empty %}
+                    <span class="muted">Aucune unité</span>
+                  {% endfor %}
+                    </div>
+                  </td>
+              <td>
+                {% for up in army.upgrades.all %}
+                  <span class="pill">{{ up.upgrade.name }} niv. {{ up.level }}</span>
+                {% empty %}
+                  <span class="muted">Aucun upgrade</span>
+                {% endfor %}
+              </td>
+              <td>
+                <div style="margin-bottom:6px;">
+                  <a href="/placement/?army={{ army.id }}" style="color:var(--accent);text-decoration:none;">Configurer formation</a>
+                </div>
+                <form method="post" style="margin-bottom:8px;" class="unit-form" data-army="{{ army.id }}" data-pop-remaining="{{ army.pop_remaining }}">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="buy_unit">
+                  <input type="hidden" name="army_id" value="{{ army.id }}">
+                  <input type="hidden" name="commander" value="{{ selected_commander.id }}">
+                    <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                      <select name="unit_type_id" style="min-width:140px;" class="unit-select" data-army="{{ army.id }}">
+                        {% for ut in army.unit_choices %}
+                        <option value="{{ ut.id }}" data-cost="{{ ut.cost }}" data-max="{{ ut.max_quantity }}" data-pop="{{ ut.pop_cost }}">{{ ut.name }} ({{ ut.cost }} or, {{ ut.pop_cost }} pop)</option>
+                        {% endfor %}
+                      </select>
+                    <input type="number" name="quantity" min="1" value="1" style="width:70px;" class="unit-qty" data-army="{{ army.id }}">
+                    <span class="muted" style="font-size:12px;">Coût: <span class="unit-cost" data-army="{{ army.id }}">0</span> or</span>
+                    <button type="submit">Acheter unités</button>
+                  </div>
+                </form>
+                <form method="post" class="upgrade-form" data-army="{{ army.id }}">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="buy_upgrade">
+                  <input type="hidden" name="army_id" value="{{ army.id }}">
+                  <input type="hidden" name="commander" value="{{ selected_commander.id }}">
+                  <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                    <select name="upgrade_id" style="min-width:140px;" class="upgrade-select" data-army="{{ army.id }}">
+                      {% for up in army.upgrade_choices %}
+                        <option value="{{ up.id }}" data-base="{{ up.base_cost }}" data-current="{{ up.current_level }}" data-max="{{ up.max_level }}">{{ up.name }} ({{ up.base_cost }} or base, niv actuel {{ up.current_level }})</option>
+                      {% endfor %}
+                    </select>
+                    <input type="number" name="level" min="1" value="1" style="width:70px;" class="upgrade-level" data-army="{{ army.id }}">
+                    <span class="muted" style="font-size:12px;">Coût: <span class="upgrade-cost" data-army="{{ army.id }}">0</span> or</span>
+                    <button type="submit">Acheter upgrade</button>
+                  </div>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="muted">Pas d'armées pour ce commandant.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Historique récent</h3>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Attaquant</th><th>Défenseur</th><th>Vainqueur</th><th>Récompense</th></tr>
+        </thead>
+        <tbody>
+          {% for battle in recent_battles %}
+            <tr>
+              <td>#{{ battle.id }}</td>
+              <td>{{ battle.attacker.name }}</td>
+              <td>{{ battle.defender.name }}</td>
+              <td>{% if battle.winner %}{{ battle.winner.name }}{% else %}<span class="muted">Égalité</span>{% endif %}</td>
+              <td>{{ battle.reward }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="muted">Aucun combat encore.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <script>
+    function updateUnitCost(armyId) {
+      const select = document.querySelector(`select.unit-select[data-army="${armyId}"]`);
+      const qtyInput = document.querySelector(`input.unit-qty[data-army="${armyId}"]`);
+      const costSpan = document.querySelector(`span.unit-cost[data-army="${armyId}"]`);
+      const btn = document.querySelector(`form.unit-form[data-army="${armyId}"] button[type="submit"]`);
+      if (!select || !qtyInput || !costSpan || !btn) return;
+      const costPer = parseFloat(select.selectedOptions[0]?.dataset.cost || "0");
+      const max = parseInt(select.selectedOptions[0]?.dataset.max || "0", 10);
+      const popCost = parseInt(select.selectedOptions[0]?.dataset.pop || "1", 10);
+      const popRemaining = parseInt(select.closest("form")?.dataset.popRemaining || "0", 10);
+      qtyInput.max = max > 0 ? max : 0;
+      if (max === 0) {
+        qtyInput.value = 0; btn.disabled = true;
+        costSpan.textContent = popRemaining <= 0 ? "Pop max atteinte" : "Or insuffisant";
+        return;
+      }
+      btn.disabled = false;
+      if (parseInt(qtyInput.value || "1", 10) > max) qtyInput.value = max;
+      const qty = parseInt(qtyInput.value || "1", 10);
+      costSpan.textContent = `${(costPer * qty) || 0} or / ${(popCost * qty)} pop`;
+    }
+
+    function upgradeCost(base, current, addLevels) {
+      let total = 0;
+      for (let i = 0; i < addLevels; i++) {
+        total += base * (1 + 0.1 * (current + i));
+      }
+      return Math.round(total);
+    }
+
+    function updateUpgradeCost(armyId) {
+      const select = document.querySelector(`select.upgrade-select[data-army="${armyId}"]`);
+      const levelInput = document.querySelector(`input.upgrade-level[data-army="${armyId}"]`);
+      const costSpan = document.querySelector(`span.upgrade-cost[data-army="${armyId}"]`);
+      const btn = document.querySelector(`form.upgrade-form[data-army="${armyId}"] button[type="submit"]`);
+      if (!select || !levelInput || !costSpan || !btn) return;
+      const base = parseFloat(select.selectedOptions[0]?.dataset.base || "0");
+      const current = parseInt(select.selectedOptions[0]?.dataset.current || "0", 10);
+      const max = parseInt(select.selectedOptions[0]?.dataset.max || "0", 10);
+      levelInput.max = max > 0 ? max : 0;
+      if (max === 0) { levelInput.value = 0; btn.disabled = true; costSpan.textContent = "Or insuffisant"; return; }
+      btn.disabled = false;
+      if (parseInt(levelInput.value || "1", 10) > max) levelInput.value = max;
+      const add = parseInt(levelInput.value || "1", 10);
+      costSpan.textContent = upgradeCost(base, current, add);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll("form.unit-form").forEach(form => {
+        const armyId = form.dataset.army;
+        form.addEventListener("change", () => updateUnitCost(armyId));
+        updateUnitCost(armyId);
+      });
+      document.querySelectorAll("form.upgrade-form").forEach(form => {
+        const armyId = form.dataset.army;
+        form.addEventListener("change", () => updateUpgradeCost(armyId));
+        updateUpgradeCost(armyId);
+      });
+      const placeBtn = document.getElementById("place-first");
+      if (placeBtn) {
+        placeBtn.addEventListener("click", () => {
+          const attacker = document.getElementById("attacker_id")?.value;
+          const defender = document.getElementById("defender_id")?.value;
+          if (!attacker || !defender || attacker === defender) {
+            showToast("Choisissez deux armées distinctes.");
+            return;
+          }
+          window.location.href = `/placement/?army=${attacker}&mode=attack&defender=${defender}&after_battle=1`;
+        });
+      }
+      const challengeForm = document.getElementById("challenge-form");
+      if (challengeForm) {
+        challengeForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const attacker = document.getElementById("attacker_id")?.value;
+          const defender = document.getElementById("defender_id")?.value;
+          if (!attacker || !defender || attacker === defender) {
+            showToast("Choisissez deux armées distinctes.");
+            return;
+          }
+          const stayHome = document.getElementById("stay-home")?.checked;
+          const resp = await fetch("/api/challenges/", {
+            method: "POST",
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({attacker_id: attacker, defender_id: defender})
+          });
+          const data = await resp.json();
+          if (data.error) { showToast(data.error); return; }
+          showToast(`Combat #${data.battle_id} terminé. Vainqueur: ${data.winner || 'égalité'}`);
+          if (!stayHome) {
+            window.location.href = `/replay/${data.battle_id}/`;
+          }
+        });
+      }
+    });
+
+    function showToast(text) {
+      alert(text);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,208 @@
+[
+  {
+    "model": "armies.commander",
+    "pk": 1,
+    "fields": {
+      "name": "Arthur",
+      "gold": 1500,
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "armies.commander",
+    "pk": 2,
+    "fields": {
+      "name": "Morgane",
+      "gold": 1400,
+      "created_at": "2025-01-01T00:00:01Z"
+    }
+  },
+  {
+    "model": "armies.unittype",
+    "pk": 1,
+    "fields": {
+      "name": "Fantassin",
+      "description": "Infanterie légère",
+      "cost": 50,
+      "defense": 1,
+      "health": 8,
+      "speed": 1
+    }
+  },
+  {
+    "model": "armies.unittype",
+    "pk": 2,
+    "fields": {
+      "name": "Archer",
+      "description": "Tir à distance",
+      "cost": 60,
+      "defense": 0,
+      "health": 5,
+      "speed": 1
+    }
+  },
+  {
+    "model": "armies.unittype",
+    "pk": 3,
+    "fields": {
+      "name": "Chevalier",
+      "description": "Cavalerie lourde",
+      "cost": 120,
+      "defense": 3,
+      "health": 12,
+      "speed": 2
+    }
+  },
+  {
+    "model": "armies.upgrade",
+    "pk": 1,
+    "fields": {
+      "name": "Discipline",
+      "description": "Bonus global de défense",
+      "cost": 30,
+      "attack_bonus": 0,
+      "defense_bonus": 1,
+      "health_bonus": 0,
+      "speed_bonus": 0,
+      "unit_type": null
+    }
+  },
+  {
+    "model": "armies.upgrade",
+    "pk": 2,
+    "fields": {
+      "name": "Lames aiguisées",
+      "description": "Fantassins plus perçants",
+      "cost": 40,
+      "attack_bonus": 1,
+      "defense_bonus": 0,
+      "health_bonus": 0,
+      "speed_bonus": 0,
+      "unit_type": 1
+    }
+  },
+  {
+    "model": "armies.upgrade",
+    "pk": 3,
+    "fields": {
+      "name": "Flèches perçantes",
+      "description": "Archers plus létaux",
+      "cost": 50,
+      "attack_bonus": 1,
+      "defense_bonus": 0,
+      "health_bonus": 0,
+      "speed_bonus": 0,
+      "unit_type": 2
+    }
+  },
+  {
+    "model": "armies.upgrade",
+    "pk": 4,
+    "fields": {
+      "name": "Charge lourde",
+      "description": "Chevaliers plus rapides et plus forts",
+      "cost": 70,
+      "attack_bonus": 1,
+      "defense_bonus": 0,
+      "health_bonus": 0,
+      "speed_bonus": 1,
+      "unit_type": 3
+    }
+  },
+  {
+    "model": "armies.army",
+    "pk": 1,
+    "fields": {
+      "commander": 1,
+      "name": "Avant-garde",
+      "formation_name": "Ligne de front",
+      "created_at": "2025-01-01T00:00:10Z"
+    }
+  },
+  {
+    "model": "armies.army",
+    "pk": 2,
+    "fields": {
+      "commander": 2,
+      "name": "Les Ombres",
+      "formation_name": "Arc large",
+      "created_at": "2025-01-01T00:00:11Z"
+    }
+  },
+  {
+    "model": "armies.armyunit",
+    "pk": 1,
+    "fields": {
+      "army": 1,
+      "unit_type": 1,
+      "position_x": 0,
+      "position_y": 1
+    }
+  },
+  {
+    "model": "armies.armyunit",
+    "pk": 2,
+    "fields": {
+      "army": 1,
+      "unit_type": 2,
+      "position_x": 1,
+      "position_y": 2
+    }
+  },
+  {
+    "model": "armies.armyunit",
+    "pk": 3,
+    "fields": {
+      "army": 2,
+      "unit_type": 2,
+      "position_x": 5,
+      "position_y": 2
+    }
+  },
+  {
+    "model": "armies.armyunit",
+    "pk": 4,
+    "fields": {
+      "army": 2,
+      "unit_type": 3,
+      "position_x": 6,
+      "position_y": 1
+    }
+  },
+  {
+    "model": "armies.armyupgrade",
+    "pk": 1,
+    "fields": {
+      "army": 1,
+      "upgrade": 1,
+      "level": 1
+    }
+  },
+  {
+    "model": "armies.armyupgrade",
+    "pk": 2,
+    "fields": {
+      "army": 1,
+      "upgrade": 2,
+      "level": 1
+    }
+  },
+  {
+    "model": "armies.armyupgrade",
+    "pk": 3,
+    "fields": {
+      "army": 2,
+      "upgrade": 1,
+      "level": 1
+    }
+  },
+  {
+    "model": "armies.armyupgrade",
+    "pk": 4,
+    "fields": {
+      "army": 2,
+      "upgrade": 3,
+      "level": 1
+    }
+  }
+]

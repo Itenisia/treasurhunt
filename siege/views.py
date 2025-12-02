@@ -240,10 +240,17 @@ def prepare_battle(request, battle_id):
         return redirect('siege:hq')
         
     # Si déjà prêt, aller à la salle de combat
-    if request.user == battle.attacker and battle.attacker_units:
-        return redirect('siege:room', battle_id=battle.id)
-    if request.user == battle.defender and battle.defender_units:
-        return redirect('siege:room', battle_id=battle.id)
+    if request.user == battle.attacker:
+        if battle.attacker_units and battle.attacker_layout:
+             return redirect('siege:room', battle_id=battle.id)
+        elif battle.attacker_units:
+             return redirect('siege:placement', battle_id=battle.id)
+             
+    if request.user == battle.defender:
+        if battle.defender_units and battle.defender_layout:
+             return redirect('siege:room', battle_id=battle.id)
+        elif battle.defender_units:
+             return redirect('siege:placement', battle_id=battle.id)
 
     return render(request, 'siege/prepare.html', {
         'battle': battle,

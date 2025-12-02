@@ -24,7 +24,7 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
     path('', include('game.urls')),
     path('chat/', include('chat.urls')),
-    path('siege/', include('siege.urls')),
+    path('siege/', include('armies.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 handler404 = 'game.views.custom_page_not_found_view'

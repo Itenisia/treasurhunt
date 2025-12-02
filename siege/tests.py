@@ -88,6 +88,39 @@ class SiegeViewTests(TestCase):
         battle.refresh_from_db()
         self.assertEqual(battle.attacker_units, {})
 
+        battle.refresh_from_db()
+        self.assertEqual(battle.attacker_units, {})
+
+    def test_placement_view(self):
+        """Test that the placement view loads correctly."""
+        battle = Battle.objects.create(attacker=self.attacker, defender=self.defender)
+        # Give attacker some units
+        battle.attacker_units = {'peasant': 5}
+        battle.save()
+        
+        url = reverse('siege:placement', args=[battle.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'siege/placement.html')
+        self.assertContains(response, 'peasant')
+        self.assertContains(response, '5')
+
+    def test_save_placement(self):
+        """Test saving the placement layout."""
+        battle = Battle.objects.create(attacker=self.attacker, defender=self.defender)
+        battle.attacker_units = {'peasant': 1}
+        battle.save()
+        
+        url = reverse('siege:save_placement', args=[battle.id])
+        layout = {'0,0': 'peasant'}
+        data = {'layout': layout}
+        
+        response = self.client.post(url, json.dumps(data), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        
+        battle.refresh_from_db()
+        self.assertEqual(battle.attacker_layout, layout)
+
 class SiegeLogicTests(TestCase):
     def setUp(self):
         self.attacker = User.objects.create_user(username='attacker', password='password')

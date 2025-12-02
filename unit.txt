@@ -1,0 +1,66 @@
+Human Alliance:
+- Peasant
+- Footman
+- Rifleman
+- Knight
+- Priest
+- Sorceress
+- Spell Breaker
+- Flying Machine
+- Mortar Team
+- Siege Engine
+- Gryphon Rider
+- Dragonhawk Rider
+- Paladin (Hero)
+- Archmage (Hero)
+- Mountain King (Hero)
+- Blood Mage (Hero)
+
+Orcish Horde:
+- Peon
+- Grunt
+- Troll Headhunter
+- Raider
+- Tauren
+- Shaman
+- Witch Doctor
+- Spirit Walker
+- Kodo Beast
+- Troll Batrider
+- Wind Rider
+- Blademaster (Hero)
+- Far Seer (Hero)
+- Tauren Chieftain (Hero)
+- Shadow Hunter (Hero)
+
+Undead Scourge:
+- Acolyte
+- Ghoul
+- Crypt Fiend
+- Gargoyle
+- Abomination
+- Meat Wagon
+- Necromancer
+- Banshee
+- Frost Wyrm
+- Obsidian Statue
+- Death Knight (Hero)
+- Dreadlord (Hero)
+- Lich (Hero)
+- Crypt Lord (Hero)
+
+Night Elf Sentinels:
+- Wisp
+- Archer
+- Huntress
+- Dryad
+- Druid of the Claw
+- Druid of the Talon
+- Mountain Giant
+- Hippogryph
+- Chimaera
+- Faerie Dragon
+- Demon Hunter (Hero)
+- Keeper of the Grove (Hero)
+- Priestess of the Moon (Hero)
+- Warden (Hero)
