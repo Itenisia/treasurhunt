@@ -28,6 +28,10 @@ urlpatterns = [
     path('siege/', include('armies.urls')),
     path('placement/', armies_views.placement_page, name='placement'),
     path('replay/<int:battle_id>/', armies_views.replay_page, name='replay'),
+    # Alias API pour les appels JS du front (placement/attaques)
+    path('api/armies/<int:army_id>/placement/', armies_views.placement_data),
+    path('api/armies/<int:army_id>/attack-presets/', armies_views.attack_presets),
+    path('api/challenges/', armies_views.create_challenge),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 handler404 = 'game.views.custom_page_not_found_view'
