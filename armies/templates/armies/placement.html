@@ -25,6 +25,19 @@
     .toolbar { display:flex; flex-direction:column; gap:10px; }
     .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
     .message { margin-top:10px; padding:10px; border-radius:10px; background: rgba(108,255,255,0.08); border:1px solid rgba(108,255,255,0.4); }
+    @media (max-width: 900px) {
+      header { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .layout { grid-template-columns: 1fr; padding: 14px; }
+      .card { padding: 12px; }
+      select, input, button { width: 100%; }
+      .grid { grid-template-columns: repeat(10, minmax(26px, 1fr)); grid-template-rows: repeat(10, minmax(32px, 1fr)); gap: 4px; }
+      .token { font-size: 12px; padding: 5px; }
+      .reserve { min-height: 48px; }
+      .row { flex-direction: column; align-items: flex-start; }
+      #attack-tools { margin-top: 6px; }
+      .toolbar > div { width: 100%; }
+      .card .row button { width: auto; }
+    }
   </style>
 </head>
 <body>

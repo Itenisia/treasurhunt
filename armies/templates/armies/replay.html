@@ -23,6 +23,14 @@
     button { padding:8px 12px; border:none; border-radius:10px; background:var(--accent); color:#041126; font-weight:700; cursor:pointer;}
     input[type=range] { width:120px; }
     .pill { padding:4px 8px; border-radius:12px; background: rgba(255,255,255,0.08); display:inline-block; font-size:12px; }
+    @media (max-width: 900px) {
+      header { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .layout { grid-template-columns: 1fr; padding: 14px; }
+      .card { padding: 12px; }
+      .grid { grid-template-columns: repeat(10, minmax(26px, 1fr)); grid-template-rows: repeat(10, minmax(32px, 1fr)); gap: 4px; }
+      .controls { flex-direction: column; align-items: flex-start; }
+      input[type=range] { width: 100%; }
+    }
   </style>
 </head>
 <body>

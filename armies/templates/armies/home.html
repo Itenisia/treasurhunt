@@ -22,6 +22,21 @@
     .pill { padding: 4px 8px; border-radius: 12px; background: rgba(255,255,255,0.08); display: inline-block; font-size: 12px; }
     .stack { display: grid; gap: 4px; }
     .message { margin-top: 12px; padding: 12px; border-radius: 10px; background: rgba(108,255,255,0.08); border: 1px solid rgba(108,255,255,0.4); }
+    .table-wrap { overflow-x: auto; }
+    .table-wrap table { min-width: 520px; }
+    @media (max-width: 900px) {
+      header { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .layout { grid-template-columns: 1fr; }
+      .card { padding: 14px; }
+      select, input, button { width: 100%; }
+      form { width: 100%; }
+      .table-wrap table { min-width: 100%; }
+      table { display: block; }
+      thead { display: none; }
+      tr { display: grid; grid-template-columns: 1fr; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+      td { padding: 6px 0; }
+      td::before { content: attr(data-label); display: block; color: var(--muted); font-size: 12px; margin-bottom: 2px; }
+    }
   </style>
 </head>
 <body>
@@ -162,8 +177,8 @@
         <tbody>
           {% for army in armies_owned %}
             <tr>
-              <td>{{ army.name }}</td>
-              <td>
+              <td data-label="Armée">{{ army.name }}</td>
+              <td data-label="Composition">
                 <div class="stack">
                   <span class="pill muted">Pop {{ army.pop_used }}/{{ army.pop_cap }}</span>
                   {% for stack in army.units.all %}
@@ -173,14 +188,14 @@
                   {% endfor %}
                     </div>
                   </td>
-              <td>
+              <td data-label="Upgrades">
                 {% for up in army.upgrades.all %}
                   <span class="pill">{{ up.upgrade.name }} niv. {{ up.level }}</span>
                 {% empty %}
                   <span class="muted">Aucun upgrade</span>
                 {% endfor %}
               </td>
-              <td>
+              <td data-label="Actions">
                 <div style="margin-bottom:6px;">
                   <a href="/placement/?army={{ army.id }}" style="color:var(--accent);text-decoration:none;">Configurer formation</a>
                 </div>
