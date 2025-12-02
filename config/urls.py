@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from armies import views as armies_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -25,6 +26,8 @@ urlpatterns = [
     path('', include('game.urls')),
     path('chat/', include('chat.urls')),
     path('siege/', include('armies.urls')),
+    path('placement/', armies_views.placement_page, name='placement'),
+    path('replay/<int:battle_id>/', armies_views.replay_page, name='replay'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 handler404 = 'game.views.custom_page_not_found_view'
