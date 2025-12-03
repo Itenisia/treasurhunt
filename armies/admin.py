@@ -28,9 +28,33 @@ class UnitTypeAdmin(admin.ModelAdmin):
 
 @admin.register(Upgrade)
 class UpgradeAdmin(admin.ModelAdmin):
-    list_display = ("name", "faction", "cost", "unit_type", "attack_bonus", "defense_bonus")
+    list_display = ("name", "faction", "cost", "target_units", "attack_bonus_pct_display", "defense_bonus")
     search_fields = ("name",)
-    list_filter = ("faction", "unit_type")
+    list_filter = ("faction", "unit_types")
+    filter_horizontal = ("unit_types",)
+    fields = (
+        "name",
+        "faction",
+        "cost",
+        "description",
+        "attack_bonus_pct",
+        "defense_bonus",
+        "health_bonus",
+        "speed_bonus",
+        "unit_types",
+    )
+
+    @admin.display(description="Cible unités")
+    def target_units(self, obj):
+        units = list(obj.unit_types.values_list("name", flat=True))
+        if not units and obj.unit_type_id:
+            return obj.unit_type.name
+        return ", ".join(units) if units else "Global"
+
+    @admin.display(description="Bonus attaque")
+    def attack_bonus_pct_display(self, obj):
+        pct = obj.attack_bonus_pct or 0
+        return f"+{pct * 100:.0f}%"
 
 
 class ArmyUnitInline(admin.TabularInline):

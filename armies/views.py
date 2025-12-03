@@ -811,6 +811,8 @@ def home(request: HttpRequest):
     if unit_filter:
         unit_qs = unit_qs.filter(name__icontains=unit_filter)
     upgrade_qs = Upgrade.objects.all()
+    if commander_ready:
+        upgrade_qs = upgrade_qs.filter(Q(faction_id__isnull=True) | Q(faction_id=current_commander.faction_id))
     if upgrade_filter:
         upgrade_qs = upgrade_qs.filter(name__icontains=upgrade_filter)
 

@@ -118,16 +118,20 @@ class StackState:
 
 def _upgrade_bonus_for_army(army: Army) -> Dict[object, Dict[str, float]]:
     bonuses: Dict[object, Dict[str, float]] = {"all": {"attack": 0, "defense": 0, "health": 0, "speed": 0}}
-    for link in army.upgrades.select_related("upgrade", "upgrade__unit_type"):
+    for link in army.upgrades.select_related("upgrade", "upgrade__unit_type").prefetch_related("upgrade__unit_types"):
         upgrade = link.upgrade
-        target = upgrade.unit_type_id or "all"
-        bonus = bonuses.setdefault(
-            target, {"attack": 0, "defense": 0, "health": 0, "speed": 0}
-        )
-        bonus["attack"] += upgrade.attack_bonus * link.level
-        bonus["defense"] += upgrade.defense_bonus * link.level
-        bonus["health"] += upgrade.health_bonus * link.level
-        bonus["speed"] += upgrade.speed_bonus * link.level
+        targets = {ut.id for ut in upgrade.unit_types.all()}
+        if upgrade.unit_type_id:
+            targets.add(upgrade.unit_type_id)
+        if not targets:
+            targets = {"all"}
+        for target in targets:
+            bonus = bonuses.setdefault(target, {"attack": 0, "defense": 0, "health": 0, "speed": 0, "attack_pct": 0.0})
+            bonus["attack"] += upgrade.attack_bonus * link.level
+            bonus["attack_pct"] += upgrade.attack_bonus_pct * link.level
+            bonus["defense"] += upgrade.defense_bonus * link.level
+            bonus["health"] += upgrade.health_bonus * link.level
+            bonus["speed"] += upgrade.speed_bonus * link.level
     return bonuses
 
 
@@ -138,12 +142,13 @@ def build_stack_states(army: Army, positions_override: Optional[Dict[int, Tuple[
     for stack in army.units.select_related("unit_type"):
         type_bonus = bonuses.get(stack.unit_type_id, {})
         ut = stack.unit_type
-        attack_bonus = global_bonus.get("attack", 0) + type_bonus.get("attack", 0)
+        attack_flat = global_bonus.get("attack", 0) + type_bonus.get("attack", 0)
+        attack_pct = global_bonus.get("attack_pct", 0.0) + type_bonus.get("attack_pct", 0.0)
         defense = ut.defense + global_bonus.get("defense", 0) + type_bonus.get("defense", 0)
         health = ut.health + global_bonus.get("health", 0) + type_bonus.get("health", 0)
         speed = ut.speed + global_bonus.get("speed", 0) + type_bonus.get("speed", 0)
-        dmg_min = ut.damage_min + attack_bonus
-        dmg_max = ut.damage_max + attack_bonus
+        dmg_min = ut.damage_min * (1 + attack_pct) + attack_flat
+        dmg_max = ut.damage_max * (1 + attack_pct) + attack_flat
         stacks.append(
             StackState(
                 stack_id=stack.id,
