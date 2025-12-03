@@ -106,7 +106,9 @@
           <div class="pill">Faction : {% if user_faction %}{{ user_faction.name }}{% else %}-{% endif %}</div>
           <div class="pill">Or : {{ selected_commander.gold }}</div>
           <div class="pill">Cap population : {{ selected_commander.pop_cap }}</div>
+          <div class="pill">Armée principale : {% if default_army %}{{ default_army.name }}{% else %}-{% endif %}</div>
           <div class="muted" style="font-size:12px;">Pour changer d'utilisateur, utilisez la déconnexion du site.</div>
+          <div class="muted" style="font-size:12px;">Une seule armée est associée à votre compte et porte votre nom.</div>
         </div>
       {% endif %}
       {% if message %}
@@ -125,12 +127,9 @@
         {% csrf_token %}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
-            <label for="attacker_id">Armée attaquante</label>
-            <select name="attacker_id" id="attacker_id">
-              {% for army in armies_owned %}
-                <option value="{{ army.id }}">{{ army.name }}</option>
-              {% endfor %}
-            </select>
+            <label>Armée attaquante</label>
+            <div class="pill" style="margin-bottom:6px;">{% if default_army %}{{ default_army.name }}{% else %}—{% endif %}</div>
+            <input type="hidden" name="attacker_id" id="attacker_id" value="{% if default_army %}{{ default_army.id }}{% endif %}">
           </div>
           <div>
             <label for="defender_id">Armée à défier</label>
@@ -163,13 +162,9 @@
           <input type="text" name="upgrade_filter" placeholder="Filtrer upgrades" value="{{ upgrade_filter }}" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:#0d1328;color:var(--text);">
           <button type="submit">Filtrer</button>
         </form>
-        <form method="post" style="display:flex; gap:8px; align-items:center;">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="create_army">
-          <input type="text" name="army_name" placeholder="Nom de l'armée" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:#0d1328;color:var(--text);" />
-          <button type="submit">Créer armée</button>
-        </form>
+        <div class="pill">Armée unique : {% if default_army %}{{ default_army.name }}{% else %}—{% endif %}</div>
       </div>
+      <p class="muted" style="margin:6px 0 12px;">Chaque compte dispose d'une seule armée nommée comme votre identifiant.</p>
       <table>
         <thead>
           <tr><th>Armée</th><th>Composition</th><th>Upgrades</th><th>Actions</th></tr>

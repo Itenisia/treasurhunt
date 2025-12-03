@@ -60,6 +60,35 @@ def _army_payload(army: Army) -> Dict[str, Any]:
     }
 
 
+def _default_army_name(user, commander: Commander | None = None) -> str:
+    username = (getattr(user, "username", "") or "").strip()
+    if username:
+        return username
+    if commander and commander.name:
+        return commander.name
+    return "Mon armée"
+
+
+def _ensure_default_army(commander: Commander, user) -> tuple[Army, bool]:
+    """
+    Ensure the commander has a single army named after the user.
+    Returns (army, created_flag).
+    """
+    desired_name = _default_army_name(user, commander)
+    army = commander.armies.filter(name=desired_name).order_by("id").first()
+    created = False
+    if not army:
+        army = commander.armies.order_by("id").first()
+        if army:
+            if army.name != desired_name:
+                army.name = desired_name
+                army.save(update_fields=["name"])
+        else:
+            army = Army.objects.create(commander=commander, name=desired_name, faction=commander.faction)
+            created = True
+    return army, created
+
+
 @csrf_exempt
 def commanders(request):
     if request.method == "GET":
@@ -86,6 +115,7 @@ def commanders(request):
         commander = Commander.objects.create(
             user=request.user, name=name, gold=starting_gold, faction=faction
         )
+        _ensure_default_army(commander, request.user)
         return JsonResponse(
             {"id": commander.id, "name": commander.name, "gold": commander.gold},
             status=201,
@@ -159,17 +189,15 @@ def armies(request):
         if not commander:
             return JsonResponse({"error": "Commander non initialisé"}, status=400)
         data = _json_body(request)
-        name = data.get("name")
-        if not name:
-            return JsonResponse({"error": "name requis"}, status=400)
-        army, created = Army.objects.get_or_create(
-            commander=commander,
-            name=name,
-            defaults={"formation_name": data.get("formation_name", ""), "faction": commander.faction},
-        )
-        if not created and "formation_name" in data:
-            army.formation_name = data["formation_name"]
-            army.save(update_fields=["formation_name"])
+        army, created = _ensure_default_army(commander, request.user)
+        if "formation_name" in data:
+            formation = data.get("formation_name") or ""
+            if army.formation_name != formation:
+                army.formation_name = formation
+                army.save(update_fields=["formation_name"])
+        if army.faction_id != commander.faction_id:
+            army.faction = commander.faction
+            army.save(update_fields=["faction"])
         return JsonResponse(_army_payload(army), status=201 if created else 200)
 
     return JsonResponse({"error": "Méthode non supportée"}, status=405)
@@ -185,6 +213,7 @@ def purchase_unit(request, army_id: int):
     commander = _commander_for_user(request.user)
     if not commander:
         return JsonResponse({"error": "Commander manquant"}, status=400)
+    default_army, _ = _ensure_default_army(commander, request.user)
     data = _json_body(request)
     unit_type_id = data.get("unit_type_id")
     quantity = int(data.get("quantity", 1))
@@ -194,6 +223,8 @@ def purchase_unit(request, army_id: int):
     army = get_object_or_404(Army, id=army_id)
     if army.commander_id != commander.id:
         return JsonResponse({"error": "Armée hors propriété"}, status=403)
+    if default_army and army.id != default_army.id:
+        return JsonResponse({"error": "Une seule armée est autorisée, nommée comme votre compte."}, status=400)
     unit_type = get_object_or_404(UnitType, id=unit_type_id)
     if (army.faction_id and unit_type.faction_id and army.faction_id != unit_type.faction_id) or (
         commander.faction_id and unit_type.faction_id and commander.faction_id != unit_type.faction_id
@@ -227,6 +258,7 @@ def purchase_upgrade(request, army_id: int):
     commander = _commander_for_user(request.user)
     if not commander:
         return JsonResponse({"error": "Commander manquant"}, status=400)
+    default_army, _ = _ensure_default_army(commander, request.user)
     data = _json_body(request)
     upgrade_id = data.get("upgrade_id")
     level = int(data.get("level", 1))
@@ -236,6 +268,8 @@ def purchase_upgrade(request, army_id: int):
     army = get_object_or_404(Army, id=army_id)
     if army.commander_id != commander.id:
         return JsonResponse({"error": "Armée hors propriété"}, status=403)
+    if default_army and army.id != default_army.id:
+        return JsonResponse({"error": "Une seule armée est autorisée, nommée comme votre compte."}, status=400)
     upgrade = get_object_or_404(Upgrade, id=upgrade_id)
     if army.faction and upgrade.faction and army.faction_id != upgrade.faction_id:
         return JsonResponse({"error": "Upgrade hors faction"}, status=400)
@@ -273,6 +307,7 @@ def place_unit(request, army_id: int):
     commander = _commander_for_user(request.user)
     if not commander:
         return JsonResponse({"error": "Commander manquant"}, status=400)
+    default_army, _ = _ensure_default_army(commander, request.user)
     data = _json_body(request)
     unit_id = data.get("army_unit_id")
     x = data.get("x")
@@ -283,6 +318,8 @@ def place_unit(request, army_id: int):
     army = get_object_or_404(Army, id=army_id)
     if army.commander_id != commander.id:
         return JsonResponse({"error": "Armée hors propriété"}, status=403)
+    if default_army and army.id != default_army.id:
+        return JsonResponse({"error": "Une seule armée est autorisée, nommée comme votre compte."}, status=400)
     if not unit_id:
         return JsonResponse({"error": "army_unit_id requis"}, status=400)
     stack = get_object_or_404(ArmyUnit, id=unit_id, army=army)
@@ -303,17 +340,22 @@ def create_challenge(request):
     commander = _commander_for_user(request.user)
     if not commander:
         return JsonResponse({"error": "Commander manquant"}, status=400)
+    attacker, _ = _ensure_default_army(commander, request.user)
     data = _json_body(request)
-    attacker_id = data.get("attacker_id")
+    attacker_input = data.get("attacker_id")
+    if attacker_input is not None:
+        try:
+            attacker_id = int(attacker_input)
+        except (TypeError, ValueError):
+            return JsonResponse({"error": "Identifiant d'armée invalide"}, status=400)
+        if attacker_id != attacker.id:
+            return JsonResponse({"error": "Une seule armée est autorisée, nommée comme votre compte."}, status=400)
     defender_id = data.get("defender_id")
-    if not attacker_id or not defender_id:
-        return JsonResponse({"error": "attacker_id et defender_id requis"}, status=400)
-    attacker = get_object_or_404(Army, id=attacker_id)
+    if not defender_id:
+        return JsonResponse({"error": "defender_id requis"}, status=400)
     defender = get_object_or_404(Army, id=defender_id)
-    if attacker_id == defender_id:
+    if attacker.id == defender.id:
         return JsonResponse({"error": "Choisir deux armées distinctes"}, status=400)
-    if attacker.commander_id != commander.id:
-        return JsonResponse({"error": "Armée attaquante hors propriété"}, status=403)
 
     battle = Battle.objects.create(attacker=attacker, defender=defender)
     outcome = simulate_battle(attacker, defender)
@@ -452,6 +494,9 @@ def placement_data(request, army_id: int):
         commander = _commander_for_user(request.user)
         if not commander or army.commander_id != commander.id:
             return JsonResponse({"error": "Armée hors propriété"}, status=403)
+        default_army, _ = _ensure_default_army(commander, request.user)
+        if default_army and army.id != default_army.id:
+            return JsonResponse({"error": "Une seule armée est autorisée, nommée comme votre compte."}, status=400)
         data = _json_body(request)
         mode = data.get("mode", "defense")
         positions = data.get("positions", [])
@@ -490,6 +535,9 @@ def attack_presets(request, army_id: int):
         commander = _commander_for_user(request.user)
         if not commander or army.commander_id != commander.id:
             return JsonResponse({"error": "Armée hors propriété"}, status=403)
+        default_army, _ = _ensure_default_army(commander, request.user)
+        if default_army and army.id != default_army.id:
+            return JsonResponse({"error": "Une seule armée est autorisée, nommée comme votre compte."}, status=400)
         data = _json_body(request)
         name = data.get("name")
         positions = data.get("positions", [])
@@ -561,6 +609,8 @@ def home(request: HttpRequest):
     upgrade_filter = (request.GET.get("upgrade_filter") or request.POST.get("upgrade_filter") or "").strip()
     message = None
     commander_ready = bool(current_commander and current_commander.faction_id)
+    default_army: Army | None = None
+    default_army_created = False
 
     if request.method == "POST":
         action = request.POST.get("action")
@@ -589,6 +639,7 @@ def home(request: HttpRequest):
                     )
                     message = "Commandant créé."
                     commander_ready = True
+                    default_army, default_army_created = _ensure_default_army(current_commander, request.user)
         elif action == "choose_faction":
             if not current_commander:
                 message = "Créez d'abord votre commandant."
@@ -604,134 +655,150 @@ def home(request: HttpRequest):
                     current_commander.save(update_fields=["faction"])
                     message = "Faction enregistrée."
                     commander_ready = True
+                    default_army, created = _ensure_default_army(current_commander, request.user)
+                    default_army_created = default_army_created or created
         else:
             if not commander_ready:
                 message = "Choisissez une faction pour créer votre commandant avant de jouer."
             else:
+                default_army, created = _ensure_default_army(current_commander, request.user)
+                default_army_created = default_army_created or created
                 if action == "create_army":
-                    army_name = (request.POST.get("army_name") or "").strip() or "Nouvelle armée"
-                    army, created = Army.objects.get_or_create(
-                        commander=current_commander,
-                        name=army_name,
-                        defaults={"faction": current_commander.faction},
+                    message = (
+                        f"Armée {default_army.name} créée."
+                        if created
+                        else f"Armée unique associée à votre compte : {default_army.name}."
                     )
-                    message = "Armée créée." if created else "Ce nom existe déjà."
                 elif action == "challenge":
-                    attacker_id = request.POST.get("attacker_id")
                     defender_id = request.POST.get("defender_id")
-                    if attacker_id and defender_id and attacker_id != defender_id:
-                        attacker = get_object_or_404(Army, id=attacker_id, commander=current_commander)
-                        defender = get_object_or_404(Army, id=defender_id)
-                        battle = Battle.objects.create(attacker=attacker, defender=defender)
-                        outcome = simulate_battle(attacker, defender)
-                        winner_field = outcome["winner"]
-                        winner_army = (
-                            attacker
-                            if winner_field == "attacker"
-                            else defender
-                            if winner_field == "defender"
-                            else None
-                        )
-                        attacker_value = army_value(attacker)
-                        defender_value = army_value(defender)
-                        winner_reward = 0
-                        loser_reward = 0
-                        if winner_field == "attacker":
-                            winner_reward = round(defender_value * 0.2)
-                            loser_reward = round(attacker_value * 0.1)
-                        elif winner_field == "defender":
-                            winner_reward = round(attacker_value * 0.2)
-                            loser_reward = round(defender_value * 0.1)
-
-                        battle.winner = winner_army
-                        battle.rounds = outcome["rounds"]
-                        battle.log = outcome["log"]
-                        battle.status = Battle.STATUS_RESOLVED
-                        battle.resolved_at = timezone.now()
-                        battle.reward = winner_reward
-                        battle.save()
-
-                        if winner_reward and winner_army:
-                            winner_army.commander.gold += winner_reward
-                            winner_army.commander.save(update_fields=["gold"])
-                        if loser_reward:
-                            loser_commander = (
-                                attacker.commander if winner_field == "defender" else defender.commander
-                            )
-                            loser_commander.gold += loser_reward
-                            loser_commander.save(update_fields=["gold"])
-
-                        message = (
-                            f"Combat #{battle.id} terminé. Vainqueur: {winner_field or 'égalité'} "
-                            f"(+{winner_reward} or pour le gagnant, +{loser_reward} pour le perdant)."
-                        )
+                    try:
+                        defender_id_int = int(defender_id)
+                    except (TypeError, ValueError):
+                        message = "Choisissez une armée à défier."
                     else:
-                        message = "Choisissez deux armées distinctes."
+                        if defender_id_int == default_army.id:
+                            message = "Choisissez une armée adverse."
+                        else:
+                            defender = get_object_or_404(Army, id=defender_id_int)
+                            battle = Battle.objects.create(attacker=default_army, defender=defender)
+                            outcome = simulate_battle(default_army, defender)
+                            winner_field = outcome["winner"]
+                            winner_army = (
+                                default_army
+                                if winner_field == "attacker"
+                                else defender
+                                if winner_field == "defender"
+                                else None
+                            )
+                            attacker_value = army_value(default_army)
+                            defender_value = army_value(defender)
+                            winner_reward = 0
+                            loser_reward = 0
+                            if winner_field == "attacker":
+                                winner_reward = round(defender_value * 0.2)
+                                loser_reward = round(attacker_value * 0.1)
+                            elif winner_field == "defender":
+                                winner_reward = round(attacker_value * 0.2)
+                                loser_reward = round(defender_value * 0.1)
+
+                            battle.winner = winner_army
+                            battle.rounds = outcome["rounds"]
+                            battle.log = outcome["log"]
+                            battle.status = Battle.STATUS_RESOLVED
+                            battle.resolved_at = timezone.now()
+                            battle.reward = winner_reward
+                            battle.save()
+
+                            if winner_reward and winner_army:
+                                winner_army.commander.gold += winner_reward
+                                winner_army.commander.save(update_fields=["gold"])
+                            if loser_reward:
+                                loser_commander = (
+                                    default_army.commander if winner_field == "defender" else defender.commander
+                                )
+                                loser_commander.gold += loser_reward
+                                loser_commander.save(update_fields=["gold"])
+
+                            message = (
+                                f"Combat #{battle.id} terminé. Vainqueur: {winner_field or 'égalité'} "
+                                f"(+{winner_reward} or pour le gagnant, +{loser_reward} pour le perdant)."
+                            )
                 elif action == "buy_unit":
-                    army_id = request.POST.get("army_id")
                     unit_type_id = request.POST.get("unit_type_id")
                     quantity = int(request.POST.get("quantity") or 0)
-                    if not (army_id and unit_type_id and quantity > 0):
-                        message = "Sélectionnez une armée, un type d'unité et une quantité > 0."
+                    if not (unit_type_id and quantity > 0):
+                        message = "Sélectionnez un type d'unité et une quantité > 0."
                     else:
-                        army = get_object_or_404(Army, id=army_id, commander=current_commander)
                         unit_type = get_object_or_404(UnitType, id=unit_type_id)
                         if (
-                            army.faction_id
+                            default_army.faction_id
                             and unit_type.faction_id
-                            and army.faction_id != unit_type.faction_id
+                            and default_army.faction_id != unit_type.faction_id
                         ):
                             message = "Unité hors faction."
                         else:
                             cost = unit_type.cost * quantity
-                            if army.commander.gold < cost:
+                            if default_army.commander.gold < cost:
                                 message = "Or insuffisant."
                             else:
-                                pop_used = army_population(army)
+                                pop_used = army_population(default_army)
                                 pop_needed = unit_type.pop_cost * quantity
-                                if pop_used + pop_needed > army.commander.pop_cap:
-                                    message = f"Population insuffisante ({pop_used}/{army.commander.pop_cap})."
+                                if pop_used + pop_needed > default_army.commander.pop_cap:
+                                    message = (
+                                        f"Population insuffisante ({pop_used}/{default_army.commander.pop_cap})."
+                                    )
                                 else:
-                                    army.commander.gold -= cost
-                                    army.commander.save(update_fields=["gold"])
-                                    new_units = [ArmyUnit(army=army, unit_type=unit_type) for _ in range(quantity)]
+                                    default_army.commander.gold -= cost
+                                    default_army.commander.save(update_fields=["gold"])
+                                    new_units = [
+                                        ArmyUnit(army=default_army, unit_type=unit_type) for _ in range(quantity)
+                                    ]
                                     ArmyUnit.objects.bulk_create(new_units)
-                                    message = f"Acheté {quantity}x {unit_type.name} pour {army.name} (-{cost} or)."
+                                    message = (
+                                        f"Acheté {quantity}x {unit_type.name} pour {default_army.name} (-{cost} or)."
+                                    )
                 elif action == "buy_upgrade":
-                    army_id = request.POST.get("army_id")
                     upgrade_id = request.POST.get("upgrade_id")
                     level = int(request.POST.get("level") or 0)
-                    if not (army_id and upgrade_id and level > 0):
-                        message = "Sélectionnez une armée, un upgrade et un niveau > 0."
+                    if not (upgrade_id and level > 0):
+                        message = "Sélectionnez un upgrade et un niveau > 0."
                     else:
-                        army = get_object_or_404(Army, id=army_id, commander=current_commander)
                         upgrade = get_object_or_404(Upgrade, id=upgrade_id)
                         current_level = (
-                            ArmyUpgrade.objects.filter(army=army, upgrade=upgrade)
+                            ArmyUpgrade.objects.filter(army=default_army, upgrade=upgrade)
                             .values_list("level", flat=True)
                             .first()
                             or 0
                         )
                         cost = upgrade_purchase_cost(upgrade, current_level, level)
-                        if army.commander.gold < cost:
+                        if default_army.commander.gold < cost:
                             message = "Or insuffisant."
                         else:
-                            army.commander.gold -= cost
-                            army.commander.save(update_fields=["gold"])
+                            default_army.commander.gold -= cost
+                            default_army.commander.save(update_fields=["gold"])
                             link, _ = ArmyUpgrade.objects.get_or_create(
-                                army=army, upgrade=upgrade, defaults={"level": 0}
+                                army=default_army, upgrade=upgrade, defaults={"level": 0}
                             )
                             link.level += level
                             link.save(update_fields=["level"])
-                            message = f"Acheté {level} niveau(x) de {upgrade.name} pour {army.name} (-{cost} or)."
+                            message = (
+                                f"Acheté {level} niveau(x) de {upgrade.name} pour {default_army.name} (-{cost} or)."
+                            )
 
     commander_ready = bool(current_commander and current_commander.faction_id)
+    if commander_ready and not default_army:
+        default_army, created = _ensure_default_army(current_commander, request.user)
+        default_army_created = default_army_created or created
 
     armies_owned = []
     other_armies = []
     recent_battles = []
-    if commander_ready:
-        armies_owned = current_commander.armies.select_related("commander").prefetch_related("units", "upgrades")
+    if commander_ready and default_army:
+        armies_owned = (
+            Army.objects.filter(id=default_army.id)
+            .select_related("commander")
+            .prefetch_related("units", "upgrades")
+        )
         other_armies = Army.objects.exclude(commander=current_commander).select_related("commander")
         recent_battles = (
             Battle.objects.filter(attacker__commander=current_commander)
@@ -788,6 +855,9 @@ def home(request: HttpRequest):
             for up in upgrade_qs
         ]
 
+    if default_army_created and default_army and not message:
+        message = f"Armée {default_army.name} créée automatiquement pour votre compte."
+
     return render(
         request,
         "armies/home.html",
@@ -809,5 +879,6 @@ def home(request: HttpRequest):
             "needs_faction_choice": bool(current_commander and not current_commander.faction_id),
             "default_commander_name": request.user.username,
             "commander_ready": commander_ready,
+            "default_army": default_army,
         },
     )
