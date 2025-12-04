@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
 
 
 class Commander(models.Model):
@@ -173,3 +175,32 @@ class Faction(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+@receiver(pre_delete, sender=User)
+def cleanup_user_dependencies(sender, instance, **kwargs):
+    """
+    Delete related game data before removing a user to avoid FK failures in admin.
+    """
+    Commander.objects.filter(user=instance).delete()
+    try:
+        from siege.models import SiegeProfile, Battle as SiegeBattle
+
+        SiegeProfile.objects.filter(user=instance).delete()
+        SiegeBattle.objects.filter(attacker=instance).delete()
+        SiegeBattle.objects.filter(defender=instance).delete()
+        SiegeBattle.objects.filter(winner=instance).update(winner=None)
+    except Exception:
+        pass
+    try:
+        from chat.models import ChatMessage
+
+        ChatMessage.objects.filter(user=instance).delete()
+    except Exception:
+        pass
+    try:
+        from game.models import PlayerProgress
+
+        PlayerProgress.objects.filter(user=instance).delete()
+    except Exception:
+        pass
