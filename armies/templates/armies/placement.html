@@ -333,7 +333,7 @@
         }).then(r => r.json()).then(res => {
           if (res.error) { showMessage(res.error, true); return; }
           showMessage(`Combat lancé. Vainqueur: ${res.winner || 'égalité'} (+${res.winner_reward} or).`);
-          setTimeout(() => { window.location.href = stayHome ? '/' : `/replay/${res.battle_id}/`; }, 800);
+          setTimeout(() => { window.location.href = stayHome ? '/siege/' : `/replay/${res.battle_id}/`; }, 800);
         }).catch(() => showMessage("Erreur lors du combat", true));
       }).catch(() => showMessage("Erreur de sauvegarde", true));
     }
