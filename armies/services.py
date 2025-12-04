@@ -118,8 +118,19 @@ class StackState:
     residual_hp: float = 0.0  # legacy, unused but kept for compatibility
 
 
+BASE_BONUS = {
+    "attack": 0,
+    "defense": 0,
+    "health": 0,
+    "speed": 0,
+    "attack_pct": 0.0,
+    "dodge_pct": 0.0,
+    "crit": 0.0,
+}
+
+
 def _upgrade_bonus_for_army(army: Army) -> Dict[object, Dict[str, float]]:
-    bonuses: Dict[object, Dict[str, float]] = {"all": {"attack": 0, "defense": 0, "health": 0, "speed": 0}}
+    bonuses: Dict[object, Dict[str, float]] = {"all": BASE_BONUS.copy()}
     for link in army.upgrades.select_related("upgrade", "upgrade__unit_type").prefetch_related("upgrade__unit_types"):
         upgrade = link.upgrade
         try:
@@ -134,18 +145,7 @@ def _upgrade_bonus_for_army(army: Army) -> Dict[object, Dict[str, float]]:
         dodge_pct_value = getattr(upgrade, "dodge_bonus_pct", 0.0) or 0.0
         crit_bonus_value = getattr(upgrade, "crit_bonus", 0.0) or 0.0
         for target in targets:
-            bonus = bonuses.setdefault(
-                target,
-                {
-                    "attack": 0,
-                    "defense": 0,
-                    "health": 0,
-                    "speed": 0,
-                    "attack_pct": 0.0,
-                    "dodge_pct": 0.0,
-                    "crit": 0.0,
-                },
-            )
+            bonus = bonuses.get(target, BASE_BONUS.copy())
             bonus["attack"] += upgrade.attack_bonus * link.level
             bonus["attack_pct"] += attack_pct_value * link.level
             bonus["defense"] += upgrade.defense_bonus * link.level
@@ -153,6 +153,7 @@ def _upgrade_bonus_for_army(army: Army) -> Dict[object, Dict[str, float]]:
             bonus["speed"] += upgrade.speed_bonus * link.level
             bonus["dodge_pct"] += dodge_pct_value * link.level
             bonus["crit"] += crit_bonus_value * link.level
+            bonuses[target] = bonus
     return bonuses
 
 
