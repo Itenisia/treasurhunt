@@ -743,8 +743,8 @@ def home(request: HttpRequest):
                     else:
                         if defender_id_int == default_army.id:
                             message = "Choisissez une armée adverse."
-                            else:
-                                defender = get_object_or_404(Army, id=defender_id_int)
+                        else:
+                            defender = get_object_or_404(Army, id=defender_id_int)
                             if _has_recent_battle(default_army, defender):
                                 message = "Vous avez déjà attaqué cette armée il y a moins d'une heure."
                             else:
