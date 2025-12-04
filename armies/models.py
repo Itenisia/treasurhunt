@@ -89,6 +89,7 @@ class Army(models.Model):
     formation_name = models.CharField(
         max_length=100, blank=True, help_text="Nom convivial de la formation enregistrée."
     )
+    elo = models.IntegerField(default=666)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

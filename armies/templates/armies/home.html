@@ -46,7 +46,10 @@
       <h1>Gestion d'armées</h1>
     </div>
     {% if commander_ready %}
-      <div class="pill">Or : {{ selected_commander.gold }}</div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <div class="pill">Or : {{ selected_commander.gold }}</div>
+        <a href="/siege/leaderboard/" style="color:#041126; background:var(--accent); padding:8px 12px; border-radius:10px; text-decoration:none; font-weight:700;">Classement Elo</a>
+      </div>
     {% endif %}
   </header>
 
@@ -135,7 +138,7 @@
             <label for="defender_id">Armée à défier</label>
             <select name="defender_id" id="defender_id">
               {% for army in other_armies %}
-                <option value="{{ army.id }}">{{ army.name }} — {{ army.commander.name }}</option>
+                <option value="{{ army.id }}">{{ army.name }} — {{ army.commander.name }} ({{ army.elo }} Elo, {{ army.badge }})</option>
               {% endfor %}
             </select>
           </div>
@@ -162,12 +165,18 @@
       <p class="muted" style="margin:6px 0 12px;">Chaque compte dispose d'une seule armée nommée comme votre identifiant.</p>
       <table>
         <thead>
-          <tr><th>Armée</th><th>Composition</th><th>Upgrades</th><th>Actions</th></tr>
+          <tr><th>Armée</th><th>Elo</th><th>Composition</th><th>Upgrades</th><th>Actions</th></tr>
         </thead>
         <tbody>
           {% for army in armies_owned %}
             <tr>
               <td data-label="Armée">{{ army.name }}</td>
+              <td data-label="Elo">
+                <div class="stack">
+                  <span class="pill">Elo {{ army.elo }}</span>
+                  {% if army.badge %}<span class="pill muted">{{ army.badge }}</span>{% endif %}
+                </div>
+              </td>
               <td data-label="Composition">
                 <div class="stack">
                   <span class="pill muted">Pop {{ army.pop_used }}/{{ army.pop_cap }}</span>

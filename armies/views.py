@@ -1,6 +1,7 @@
 import json
-from typing import Any, Dict, Optional
+import math
 from datetime import timedelta
+from typing import Any, Dict, Optional
 
 from django.http import HttpRequest, JsonResponse
 from django.db.models import Q, Exists, OuterRef
@@ -100,6 +101,54 @@ def _has_recent_battle(attacker: Army, defender: Army, window: timedelta = timed
         status=Battle.STATUS_RESOLVED,
         resolved_at__gte=since,
     ).exists()
+
+
+def _expected_score(rating_a: int, rating_b: int) -> float:
+    return 1 / (1 + 10 ** ((rating_b - rating_a) / 400))
+
+
+def _apply_elo(attacker: Army, defender: Army, winner: Optional[Army], k_factor: int = 32) -> None:
+    """
+    Apply Elo update for attacker/defender when winner is known (ignore draws).
+    Only applies for human-controlled armies.
+    """
+    if not winner or winner not in (attacker, defender):
+        return
+    if not (getattr(attacker.commander, "user_id", None) and getattr(defender.commander, "user_id", None)):
+        return
+
+    expected_attacker = _expected_score(attacker.elo, defender.elo)
+    expected_defender = _expected_score(defender.elo, attacker.elo)
+    score_attacker = 1 if winner == attacker else 0
+    score_defender = 1 - score_attacker
+
+    attacker.elo = round(attacker.elo + k_factor * (score_attacker - expected_attacker))
+    defender.elo = round(defender.elo + k_factor * (score_defender - expected_defender))
+    attacker.save(update_fields=["elo"])
+    defender.save(update_fields=["elo"])
+
+
+def _badge_for_rank(rank: int, total: int) -> str:
+    if rank == 1:
+        return "Platine"
+    if rank in (2, 3):
+        return "Diamant"
+    gold_cut = max(1, math.ceil(total / 3))
+    silver_cut = max(1, math.ceil(2 * total / 3))
+    if rank <= gold_cut:
+        return "Or"
+    if rank <= silver_cut:
+        return "Argent"
+    return "Bronze"
+
+
+def _army_leaderboard():
+    armies = list(Army.objects.select_related("commander").order_by("-elo", "id"))
+    total = len(armies)
+    for idx, army in enumerate(armies, start=1):
+        army.rank = idx
+        army.badge = _badge_for_rank(idx, total)
+    return armies
 
 
 @csrf_exempt
@@ -395,6 +444,7 @@ def create_challenge(request):
     battle.reward = winner_reward
     battle.metadata = outcome.get("initial_positions", {})
     battle.save()
+    _apply_elo(attacker, defender, winner_army)
 
     if winner_reward and winner_army:
         winner_army.commander.gold += winner_reward
@@ -693,8 +743,8 @@ def home(request: HttpRequest):
                     else:
                         if defender_id_int == default_army.id:
                             message = "Choisissez une armée adverse."
-                        else:
-                            defender = get_object_or_404(Army, id=defender_id_int)
+                            else:
+                                defender = get_object_or_404(Army, id=defender_id_int)
                             if _has_recent_battle(default_army, defender):
                                 message = "Vous avez déjà attaqué cette armée il y a moins d'une heure."
                             else:
@@ -736,6 +786,7 @@ def home(request: HttpRequest):
                                     )
                                     loser_commander.gold += loser_reward
                                     loser_commander.save(update_fields=["gold"])
+                                _apply_elo(default_army, defender, winner_army)
 
                                 message = (
                                     f"Combat #{battle.id} terminé. Vainqueur: {winner_field or 'égalité'} "
@@ -829,7 +880,9 @@ def home(request: HttpRequest):
             .annotate(can_attack=~Exists(recent_vs))
             .filter(can_attack=True)
             .select_related("commander")
+            .order_by("-elo", "id")
         )
+        other_armies = list(other_armies)
         recent_battles = (
             Battle.objects.filter(attacker__commander=current_commander)
             | Battle.objects.filter(defender__commander=current_commander)
@@ -845,6 +898,13 @@ def home(request: HttpRequest):
         upgrade_qs = upgrade_qs.filter(Q(faction_id__isnull=True) | Q(faction_id=current_commander.faction_id))
     if upgrade_filter:
         upgrade_qs = upgrade_qs.filter(name__icontains=upgrade_filter)
+
+    leaderboard_armies = _army_leaderboard()
+    rank_map = {army.id: (army.rank, army.badge, army.elo) for army in leaderboard_armies}
+    if default_army:
+        rank, badge, _ = rank_map.get(default_army.id, (None, "Bronze", default_army.elo))
+        default_army.rank = rank
+        default_army.badge = badge
 
     def max_affordable_levels(upgrade: Upgrade, current_level: int, gold: int) -> int:
         levels = 0
@@ -886,6 +946,15 @@ def home(request: HttpRequest):
             }
             for up in upgrade_qs
         ]
+        rank, badge, elo = rank_map.get(army.id, (None, "Bronze", army.elo))
+        army.rank = rank
+        army.badge = badge
+        army.elo = elo
+    for army in other_armies:
+        rank, badge, elo = rank_map.get(army.id, (None, "Bronze", army.elo))
+        army.rank = rank
+        army.badge = badge
+        army.elo = elo
 
     if default_army_created and default_army and not message:
         message = f"Armée {default_army.name} créée automatiquement pour votre compte."
@@ -912,5 +981,18 @@ def home(request: HttpRequest):
             "default_commander_name": request.user.username,
             "commander_ready": commander_ready,
             "default_army": default_army,
+            "leaderboard_url": "/siege/leaderboard/",
+        },
+    )
+
+
+@login_required
+def army_leaderboard(request: HttpRequest):
+    armies = _army_leaderboard()
+    return render(
+        request,
+        "armies/leaderboard.html",
+        {
+            "armies": armies,
         },
     )

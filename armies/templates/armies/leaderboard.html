@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Classement Elo</title>
+  <style>
+    :root { --bg:#0b1021; --card:#121933; --accent:#6cf; --text:#e9ecf4; --muted:#9da4c9; --danger:#f66; }
+    body { margin:0; font-family:"Segoe UI", sans-serif; background: radial-gradient(circle at 20% 20%, #18244d, #0b1021 50%), #0b1021; color: var(--text); }
+    header { padding:20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.08); }
+    h1 { margin:0; }
+    a.btn { color:#041126; background:var(--accent); padding:10px 14px; border-radius:10px; text-decoration:none; font-weight:700; }
+    .card { margin:20px; background:var(--card); border-radius:14px; padding:18px; border:1px solid rgba(255,255,255,0.05); box-shadow:0 10px 25px rgba(0,0,0,0.35); }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:10px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.05); }
+    th { color:var(--muted); font-weight:600; }
+    .pill { padding:4px 8px; border-radius:12px; background:rgba(255,255,255,0.08); display:inline-block; font-size:12px; }
+    .muted { color:var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Classement Elo des armées</h1>
+    <a class="btn" href="/siege/">Retour QG</a>
+  </header>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Armée</th><th>Commandant</th><th>Elo</th><th>Badge</th></tr>
+      </thead>
+      <tbody>
+        {% for army in armies %}
+          <tr>
+            <td>{{ army.rank }}</td>
+            <td>{{ army.name }}</td>
+            <td>{% if army.commander %}{{ army.commander.name }}{% else %}—{% endif %}</td>
+            <td>{{ army.elo }}</td>
+            <td><span class="pill">{{ army.badge }}</span></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="muted">Aucune armée pour l'instant.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>
