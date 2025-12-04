@@ -19,6 +19,10 @@
     .blocked { background: rgba(239,68,68,0.08); color: #fca5a5; }
     .attack-link { color:#4ade80; text-decoration:none; font-weight:700; }
     .attack-link:hover { text-decoration:underline; }
+    .tooltip-card { position:absolute; z-index:10; background:var(--card); border:1px solid rgba(255,255,255,0.08); padding:10px; border-radius:10px; box-shadow:0 10px 20px rgba(0,0,0,0.35); width:240px; display:none; }
+    .tooltip-card h4 { margin:0 0 6px; font-size:14px; }
+    .tooltip-card .muted { font-size:12px; }
+    .relative { position:relative; }
   </style>
 </head>
 <body>
@@ -35,8 +39,40 @@
         {% for army in armies %}
           <tr class="{% if army.can_attack %}attackable{% else %}blocked{% endif %}">
             <td>{{ army.rank }}</td>
-            <td>{{ army.name }}</td>
-            <td>{% if army.commander %}{{ army.commander.name }}{% else %}—{% endif %}</td>
+            <td class="relative">
+              <a href="/siege/profile/{{ army.id }}/" class="attack-link" data-army-id="{{ army.id }}">{{ army.name }}</a>
+              <div class="tooltip-card" id="card-army-{{ army.id }}">
+                <h4>{{ army.name }}</h4>
+                <div class="muted">Commandant : {% if army.commander %}{{ army.commander.name }}{% else %}—{% endif %}</div>
+                <div style="margin-top:6px;">
+                  <div class="muted">Unités :</div>
+                  <div>
+                    {% for unit in army_cards|dict_get:army.id.units %}
+                      <span class="pill">{{ unit }}</span>
+                    {% empty %}
+                      <span class="muted">Aucune unité</span>
+                    {% endfor %}
+                  </div>
+                </div>
+                <div style="margin-top:6px;">
+                  <div class="muted">Améliorations :</div>
+                  <div>
+                    {% for up in army_cards|dict_get:army.id.upgrades %}
+                      <span class="pill">{{ up }}</span>
+                    {% empty %}
+                      <span class="muted">Aucune amélioration</span>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td class="relative">
+              {% if army.commander %}
+                <a href="/siege/profile/{{ army.id }}/" class="attack-link" data-army-id="{{ army.id }}">{{ army.commander.name }}</a>
+              {% else %}
+                —
+              {% endif %}
+            </td>
             <td>{{ army.elo }}</td>
             <td><span class="pill">{{ army.badge }}</span></td>
             <td>
@@ -55,5 +91,16 @@
       </tbody>
     </table>
   </div>
+  <script>
+    document.querySelectorAll('[data-army-id]').forEach(link => {
+      const id = link.dataset.armyId;
+      const card = document.getElementById(`card-army-${id}`);
+      if (!card) return;
+      link.addEventListener('mouseenter', () => { card.style.display = 'block'; });
+      link.addEventListener('mouseleave', () => { card.style.display = 'none'; });
+      link.addEventListener('focus', () => { card.style.display = 'block'; });
+      link.addEventListener('blur', () => { card.style.display = 'none'; });
+    });
+  </script>
 </body>
 </html>
