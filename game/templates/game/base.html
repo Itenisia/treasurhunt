@@ -25,7 +25,11 @@
                 <a class="nav-link text-warning" href="{% url 'chat:room' %}">📜 Canal de Quête</a>
                 <a class="nav-link text-danger" href="/siege/">🏰 Siège</a>
                 <span class="navbar-text text-white">{{ user.username }}</span>
-                <a class="btn btn-outline-light btn-sm" href="{% url 'logout' %}?next=/">Déconnexion</a>
+                <form action="{% url 'logout' %}" method="post" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="/">
+                    <button type="submit" class="btn btn-outline-light btn-sm">Déconnexion</button>
+                </form>
                 {% else %}
                 <a class="btn btn-light btn-sm" href="{% url 'login' %}">Connexion</a>
                 {% endif %}
