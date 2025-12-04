@@ -399,9 +399,13 @@ def placement(request, battle_id):
     if request.user == battle.attacker:
         units_available = battle.attacker_units
         current_layout = battle.attacker_layout
+        opponent_layout = battle.defender_layout
+        opponent_name = battle.defender.username if battle.defender else "Adversaire"
     elif request.user == battle.defender:
         units_available = battle.defender_units
         current_layout = battle.defender_layout
+        opponent_layout = battle.attacker_layout
+        opponent_name = battle.attacker.username
     else:
         return redirect('siege:hq')
         
@@ -415,7 +419,9 @@ def placement(request, battle_id):
     return render(request, 'siege/placement.html', {
         'battle': battle,
         'units_available': units_available,
-        'units_config': units_config
+        'units_config': units_config,
+        'opponent_layout': opponent_layout,
+        'opponent_name': opponent_name
     })
 
 @login_required
