@@ -3,6 +3,8 @@ from typing import Dict, List, Optional, Tuple
 import random
 from collections import deque
 
+from django.db import ProgrammingError
+
 from .models import Army, ArmyUnit, UnitType
 
 
@@ -120,15 +122,19 @@ def _upgrade_bonus_for_army(army: Army) -> Dict[object, Dict[str, float]]:
     bonuses: Dict[object, Dict[str, float]] = {"all": {"attack": 0, "defense": 0, "health": 0, "speed": 0}}
     for link in army.upgrades.select_related("upgrade", "upgrade__unit_type").prefetch_related("upgrade__unit_types"):
         upgrade = link.upgrade
-        targets = {ut.id for ut in upgrade.unit_types.all()}
+        try:
+            targets = {ut.id for ut in upgrade.unit_types.all()}
+        except ProgrammingError:
+            targets = set()
         if upgrade.unit_type_id:
             targets.add(upgrade.unit_type_id)
         if not targets:
             targets = {"all"}
+        attack_pct_value = getattr(upgrade, "attack_bonus_pct", 0.0) or 0.0
         for target in targets:
             bonus = bonuses.setdefault(target, {"attack": 0, "defense": 0, "health": 0, "speed": 0, "attack_pct": 0.0})
             bonus["attack"] += upgrade.attack_bonus * link.level
-            bonus["attack_pct"] += upgrade.attack_bonus_pct * link.level
+            bonus["attack_pct"] += attack_pct_value * link.level
             bonus["defense"] += upgrade.defense_bonus * link.level
             bonus["health"] += upgrade.health_bonus * link.level
             bonus["speed"] += upgrade.speed_bonus * link.level
