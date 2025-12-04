@@ -182,7 +182,18 @@ def cleanup_user_dependencies(sender, instance, **kwargs):
     """
     Delete related game data before removing a user to avoid FK failures in admin.
     """
-    Commander.objects.filter(user=instance).delete()
+    # Armies & battles (armies app)
+    try:
+        from armies.models import Battle as ArmyBattle  # type: ignore
+
+        armies_qs = Army.objects.filter(commander__user=instance)
+        ArmyBattle.objects.filter(attacker__in=armies_qs).delete()
+        ArmyBattle.objects.filter(defender__in=armies_qs).delete()
+        ArmyBattle.objects.filter(winner__in=armies_qs).update(winner=None)
+        armies_qs.delete()
+        Commander.objects.filter(user=instance).delete()
+    except Exception:
+        pass
     try:
         from siege.models import SiegeProfile, Battle as SiegeBattle
 
