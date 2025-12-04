@@ -131,13 +131,28 @@ def _upgrade_bonus_for_army(army: Army) -> Dict[object, Dict[str, float]]:
         if not targets:
             targets = {"all"}
         attack_pct_value = getattr(upgrade, "attack_bonus_pct", 0.0) or 0.0
+        dodge_pct_value = getattr(upgrade, "dodge_bonus_pct", 0.0) or 0.0
+        crit_bonus_value = getattr(upgrade, "crit_bonus", 0.0) or 0.0
         for target in targets:
-            bonus = bonuses.setdefault(target, {"attack": 0, "defense": 0, "health": 0, "speed": 0, "attack_pct": 0.0})
+            bonus = bonuses.setdefault(
+                target,
+                {
+                    "attack": 0,
+                    "defense": 0,
+                    "health": 0,
+                    "speed": 0,
+                    "attack_pct": 0.0,
+                    "dodge_pct": 0.0,
+                    "crit": 0.0,
+                },
+            )
             bonus["attack"] += upgrade.attack_bonus * link.level
             bonus["attack_pct"] += attack_pct_value * link.level
             bonus["defense"] += upgrade.defense_bonus * link.level
             bonus["health"] += upgrade.health_bonus * link.level
             bonus["speed"] += upgrade.speed_bonus * link.level
+            bonus["dodge_pct"] += dodge_pct_value * link.level
+            bonus["crit"] += crit_bonus_value * link.level
     return bonuses
 
 
@@ -150,6 +165,8 @@ def build_stack_states(army: Army, positions_override: Optional[Dict[int, Tuple[
         ut = stack.unit_type
         attack_flat = global_bonus.get("attack", 0) + type_bonus.get("attack", 0)
         attack_pct = global_bonus.get("attack_pct", 0.0) + type_bonus.get("attack_pct", 0.0)
+        dodge_pct = min(0.5, (global_bonus.get("dodge_pct", 0.0) + type_bonus.get("dodge_pct", 0.0)))
+        crit_bonus = global_bonus.get("crit", 0.0) + type_bonus.get("crit", 0.0)
         defense = ut.defense + global_bonus.get("defense", 0) + type_bonus.get("defense", 0)
         health = ut.health + global_bonus.get("health", 0) + type_bonus.get("health", 0)
         speed = ut.speed + global_bonus.get("speed", 0) + type_bonus.get("speed", 0)
@@ -174,9 +191,9 @@ def build_stack_states(army: Army, positions_override: Optional[Dict[int, Tuple[
                 damage_max=dmg_max,
                 attack_type=ut.attack_type or "normal",
                 armor_type=ut.armor_type or "unarmored",
-                crit_chance=min(0.5, ut.crit_chance),
+                crit_chance=min(0.5, ut.crit_chance + crit_bonus),
                 crit_multiplier=ut.crit_multiplier,
-                dodge_chance=min(0.5, ut.dodge_chance),
+                dodge_chance=min(0.5, ut.dodge_chance + dodge_pct),
                 aoe_radius=ut.aoe_radius,
                 position_x=positions_override.get(stack.id, (stack.position_x, stack.position_y))[0]
                 if positions_override
