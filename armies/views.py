@@ -1,8 +1,9 @@
 import json
 from typing import Any, Dict, Optional
+from datetime import timedelta
 
 from django.http import HttpRequest, JsonResponse
-from django.db.models import Q
+from django.db.models import Q, Exists, OuterRef
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404, render
@@ -88,6 +89,17 @@ def _ensure_default_army(commander: Commander, user) -> tuple[Army, bool]:
             army = Army.objects.create(commander=commander, name=desired_name, faction=commander.faction)
             created = True
     return army, created
+
+
+def _has_recent_battle(attacker: Army, defender: Army, window: timedelta = timedelta(hours=1)) -> bool:
+    """Return True if attacker fought defender within the cooldown window (resolved battles only)."""
+    since = timezone.now() - window
+    return Battle.objects.filter(
+        attacker=attacker,
+        defender=defender,
+        status=Battle.STATUS_RESOLVED,
+        resolved_at__gte=since,
+    ).exists()
 
 
 @csrf_exempt
@@ -357,6 +369,8 @@ def create_challenge(request):
     defender = get_object_or_404(Army, id=defender_id)
     if attacker.id == defender.id:
         return JsonResponse({"error": "Choisir deux armées distinctes"}, status=400)
+    if _has_recent_battle(attacker, defender):
+        return JsonResponse({"error": "Vous avez déjà attaqué cette armée il y a moins d'une heure."}, status=400)
 
     battle = Battle.objects.create(attacker=attacker, defender=defender)
     outcome = simulate_battle(attacker, defender)
@@ -681,49 +695,52 @@ def home(request: HttpRequest):
                             message = "Choisissez une armée adverse."
                         else:
                             defender = get_object_or_404(Army, id=defender_id_int)
-                            battle = Battle.objects.create(attacker=default_army, defender=defender)
-                            outcome = simulate_battle(default_army, defender)
-                            winner_field = outcome["winner"]
-                            winner_army = (
-                                default_army
-                                if winner_field == "attacker"
-                                else defender
-                                if winner_field == "defender"
-                                else None
-                            )
-                            attacker_value = army_value(default_army)
-                            defender_value = army_value(defender)
-                            winner_reward = 0
-                            loser_reward = 0
-                            if winner_field == "attacker":
-                                winner_reward = round(defender_value * 0.2)
-                                loser_reward = round(attacker_value * 0.1)
-                            elif winner_field == "defender":
-                                winner_reward = round(attacker_value * 0.2)
-                                loser_reward = round(defender_value * 0.1)
-
-                            battle.winner = winner_army
-                            battle.rounds = outcome["rounds"]
-                            battle.log = outcome["log"]
-                            battle.status = Battle.STATUS_RESOLVED
-                            battle.resolved_at = timezone.now()
-                            battle.reward = winner_reward
-                            battle.save()
-
-                            if winner_reward and winner_army:
-                                winner_army.commander.gold += winner_reward
-                                winner_army.commander.save(update_fields=["gold"])
-                            if loser_reward:
-                                loser_commander = (
-                                    default_army.commander if winner_field == "defender" else defender.commander
+                            if _has_recent_battle(default_army, defender):
+                                message = "Vous avez déjà attaqué cette armée il y a moins d'une heure."
+                            else:
+                                battle = Battle.objects.create(attacker=default_army, defender=defender)
+                                outcome = simulate_battle(default_army, defender)
+                                winner_field = outcome["winner"]
+                                winner_army = (
+                                    default_army
+                                    if winner_field == "attacker"
+                                    else defender
+                                    if winner_field == "defender"
+                                    else None
                                 )
-                                loser_commander.gold += loser_reward
-                                loser_commander.save(update_fields=["gold"])
+                                attacker_value = army_value(default_army)
+                                defender_value = army_value(defender)
+                                winner_reward = 0
+                                loser_reward = 0
+                                if winner_field == "attacker":
+                                    winner_reward = round(defender_value * 0.2)
+                                    loser_reward = round(attacker_value * 0.1)
+                                elif winner_field == "defender":
+                                    winner_reward = round(attacker_value * 0.2)
+                                    loser_reward = round(defender_value * 0.1)
 
-                            message = (
-                                f"Combat #{battle.id} terminé. Vainqueur: {winner_field or 'égalité'} "
-                                f"(+{winner_reward} or pour le gagnant, +{loser_reward} pour le perdant)."
-                            )
+                                battle.winner = winner_army
+                                battle.rounds = outcome["rounds"]
+                                battle.log = outcome["log"]
+                                battle.status = Battle.STATUS_RESOLVED
+                                battle.resolved_at = timezone.now()
+                                battle.reward = winner_reward
+                                battle.save()
+
+                                if winner_reward and winner_army:
+                                    winner_army.commander.gold += winner_reward
+                                    winner_army.commander.save(update_fields=["gold"])
+                                if loser_reward:
+                                    loser_commander = (
+                                        default_army.commander if winner_field == "defender" else defender.commander
+                                    )
+                                    loser_commander.gold += loser_reward
+                                    loser_commander.save(update_fields=["gold"])
+
+                                message = (
+                                    f"Combat #{battle.id} terminé. Vainqueur: {winner_field or 'égalité'} "
+                                    f"(+{winner_reward} or pour le gagnant, +{loser_reward} pour le perdant)."
+                                )
                 elif action == "buy_unit":
                     unit_type_id = request.POST.get("unit_type_id")
                     quantity = int(request.POST.get("quantity") or 0)
@@ -800,7 +817,19 @@ def home(request: HttpRequest):
             .select_related("commander")
             .prefetch_related("units", "upgrades")
         )
-        other_armies = Army.objects.exclude(commander=current_commander).select_related("commander")
+        cooldown_since = timezone.now() - timedelta(hours=1)
+        recent_vs = Battle.objects.filter(
+            attacker=default_army,
+            defender=OuterRef("pk"),
+            status=Battle.STATUS_RESOLVED,
+            resolved_at__gte=cooldown_since,
+        )
+        other_armies = (
+            Army.objects.exclude(commander=current_commander)
+            .annotate(can_attack=~Exists(recent_vs))
+            .filter(can_attack=True)
+            .select_related("commander")
+        )
         recent_battles = (
             Battle.objects.filter(attacker__commander=current_commander)
             | Battle.objects.filter(defender__commander=current_commander)
