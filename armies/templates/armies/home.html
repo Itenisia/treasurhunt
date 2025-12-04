@@ -157,11 +157,6 @@
     <div class="card" style="margin-bottom:16px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
         <h3 style="margin:0;">Armées de {% if selected_commander %}{{ selected_commander.name }}{% else %}—{% endif %}</h3>
-        <form method="get" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <input type="text" name="unit_filter" placeholder="Filtrer unités" value="{{ unit_filter }}" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:#0d1328;color:var(--text);">
-          <input type="text" name="upgrade_filter" placeholder="Filtrer upgrades" value="{{ upgrade_filter }}" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:#0d1328;color:var(--text);">
-          <button type="submit">Filtrer</button>
-        </form>
         <div class="pill">Armée unique : {% if default_army %}{{ default_army.name }}{% else %}—{% endif %}</div>
       </div>
       <p class="muted" style="margin:6px 0 12px;">Chaque compte dispose d'une seule armée nommée comme votre identifiant.</p>
