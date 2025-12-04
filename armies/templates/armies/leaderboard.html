@@ -15,6 +15,10 @@
     th { color:var(--muted); font-weight:600; }
     .pill { padding:4px 8px; border-radius:12px; background:rgba(255,255,255,0.08); display:inline-block; font-size:12px; }
     .muted { color:var(--muted); }
+    .attackable { background: rgba(74,222,128,0.08); }
+    .blocked { background: rgba(239,68,68,0.08); color: #fca5a5; }
+    .attack-link { color:#4ade80; text-decoration:none; font-weight:700; }
+    .attack-link:hover { text-decoration:underline; }
   </style>
 </head>
 <body>
@@ -25,16 +29,25 @@
   <div class="card">
     <table>
       <thead>
-        <tr><th>#</th><th>Armée</th><th>Commandant</th><th>Elo</th><th>Badge</th></tr>
+        <tr><th>#</th><th>Armée</th><th>Commandant</th><th>Elo</th><th>Badge</th><th>Défier</th></tr>
       </thead>
       <tbody>
         {% for army in armies %}
-          <tr>
+          <tr class="{% if army.can_attack %}attackable{% else %}blocked{% endif %}">
             <td>{{ army.rank }}</td>
             <td>{{ army.name }}</td>
             <td>{% if army.commander %}{{ army.commander.name }}{% else %}—{% endif %}</td>
             <td>{{ army.elo }}</td>
             <td><span class="pill">{{ army.badge }}</span></td>
+            <td>
+              {% if army.can_attack and army.attack_url %}
+                <a class="attack-link" href="{{ army.attack_url }}">Défier</a>
+              {% elif default_army and army.commander_id == default_army.commander_id %}
+                <span class="muted">Votre armée</span>
+              {% else %}
+                <span class="muted">Cooldown</span>
+              {% endif %}
+            </td>
           </tr>
         {% empty %}
           <tr><td colspan="5" class="muted">Aucune armée pour l'instant.</td></tr>

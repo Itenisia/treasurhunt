@@ -989,10 +989,38 @@ def home(request: HttpRequest):
 @login_required
 def army_leaderboard(request: HttpRequest):
     armies = _army_leaderboard()
+    default_army = None
+    recent_opponents = set()
+    if request.user.is_authenticated:
+        commander = _commander_for_user(request.user)
+        if commander:
+            default_army, _ = _ensure_default_army(commander, request.user)
+            cooldown_since = timezone.now() - timedelta(hours=1)
+            recent_opponents = set(
+                Battle.objects.filter(
+                    attacker=default_army,
+                    status=Battle.STATUS_RESOLVED,
+                    resolved_at__gte=cooldown_since,
+                ).values_list("defender_id", flat=True)
+            )
+
+    for army in armies:
+        if default_army and army.id != default_army.id and army.commander_id != default_army.commander_id:
+            army.can_attack = army.id not in recent_opponents
+            army.attack_url = (
+                f"/placement/?army={default_army.id}&mode=attack&defender={army.id}&after_battle=1"
+                if army.can_attack
+                else ""
+            )
+        else:
+            army.can_attack = False
+            army.attack_url = ""
+
     return render(
         request,
         "armies/leaderboard.html",
         {
             "armies": armies,
+            "default_army": default_army,
         },
     )
