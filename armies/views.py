@@ -991,7 +991,6 @@ def army_leaderboard(request: HttpRequest):
     armies = _army_leaderboard()
     default_army = None
     recent_opponents = set()
-    army_cards: Dict[int, Dict[str, Any]] = {}
     if request.user.is_authenticated:
         commander = _commander_for_user(request.user)
         if commander:
@@ -1006,11 +1005,13 @@ def army_leaderboard(request: HttpRequest):
             )
 
     # Prefetch units/upgrades for tooltips & profiles
-    for army in Army.objects.select_related("commander").prefetch_related("units__unit_type", "upgrades__upgrade"):
-        army_cards[army.id] = {
-            "units": [f"{u.unit_type.name}" for u in army.units.all()],
-            "upgrades": [f"{up.upgrade.name} niv. {up.level}" for up in army.upgrades.all()],
+    army_details = {
+        a.id: {
+            "units": [f"{u.unit_type.name}" for u in a.units.all()],
+            "upgrades": [f"{up.upgrade.name} niv. {up.level}" for up in a.upgrades.all()],
         }
+        for a in Army.objects.select_related("commander").prefetch_related("units__unit_type", "upgrades__upgrade")
+    }
 
     for army in armies:
         if default_army and army.id != default_army.id and army.commander_id != default_army.commander_id:
@@ -1023,6 +1024,9 @@ def army_leaderboard(request: HttpRequest):
         else:
             army.can_attack = False
             army.attack_url = ""
+        details = army_details.get(army.id, {"units": [], "upgrades": []})
+        army.tooltip_units = details["units"]
+        army.tooltip_upgrades = details["upgrades"]
 
     return render(
         request,
@@ -1030,6 +1034,5 @@ def army_leaderboard(request: HttpRequest):
         {
             "armies": armies,
             "default_army": default_army,
-            "army_cards": army_cards,
         },
     )

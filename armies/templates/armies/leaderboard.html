@@ -47,29 +47,25 @@
                 <div style="margin-top:6px;">
                   <div class="muted">Unités :</div>
                   <div>
-                    {% with card=army_cards|get_item:army.id %}
-                      {% if card and card.units %}
-                        {% for unit in card.units %}
-                          <span class="pill">{{ unit }}</span>
-                        {% endfor %}
-                      {% else %}
-                        <span class="muted">Aucune unité</span>
-                      {% endif %}
-                    {% endwith %}
+                    {% if army.tooltip_units %}
+                      {% for unit in army.tooltip_units %}
+                        <span class="pill">{{ unit }}</span>
+                      {% endfor %}
+                    {% else %}
+                      <span class="muted">Aucune unité</span>
+                    {% endif %}
                   </div>
                 </div>
                 <div style="margin-top:6px;">
                   <div class="muted">Améliorations :</div>
                   <div>
-                    {% with card=army_cards|get_item:army.id %}
-                      {% if card and card.upgrades %}
-                        {% for up in card.upgrades %}
-                          <span class="pill">{{ up }}</span>
-                        {% endfor %}
-                      {% else %}
-                        <span class="muted">Aucune amélioration</span>
-                      {% endif %}
-                    {% endwith %}
+                    {% if army.tooltip_upgrades %}
+                      {% for up in army.tooltip_upgrades %}
+                        <span class="pill">{{ up }}</span>
+                      {% endfor %}
+                    {% else %}
+                      <span class="muted">Aucune amélioration</span>
+                    {% endif %}
                   </div>
                 </div>
               </div>
