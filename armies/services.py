@@ -231,11 +231,7 @@ def upgrade_purchase_cost(upgrade, current_level: int, levels_to_add: int) -> in
     Le niveau n coûte n × coût de base (linéaire).
     """
     base = upgrade.cost
-    total = 0
-    for i in range(levels_to_add):
-        level_rank = current_level + i + 1
-        total += base * level_rank
-    return total
+    return sum(base * (current_level + i + 1) for i in range(levels_to_add))
 
 
 def _position_defense_bonus(stack: StackState) -> float:
