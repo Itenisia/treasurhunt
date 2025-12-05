@@ -227,15 +227,15 @@ def army_population(army: Army) -> int:
 
 def upgrade_purchase_cost(upgrade, current_level: int, levels_to_add: int) -> int:
     """
-    Calcule le coût total pour acheter `levels_to_add` niveaux supplémentaires.
-    Chaque niveau coûte +10% du coût de base par niveau déjà acquis.
-    Ex : coût du 10e niveau ~= 2x le coût de base.
+    Coût total pour ajouter `levels_to_add` niveaux.
+    Le niveau n coûte n × coût de base (linéaire).
     """
     base = upgrade.cost
-    total = 0.0
+    total = 0
     for i in range(levels_to_add):
-        total += base * (1 + 0.1 * (current_level + i))
-    return int(round(total))
+        level_rank = current_level + i + 1
+        total += base * level_rank
+    return total
 
 
 def _position_defense_bonus(stack: StackState) -> float:
