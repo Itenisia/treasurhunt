@@ -86,20 +86,11 @@ def scan_qr(request, token):
             points = 0
             msg_success = "Chasse démarrée ! Bonne chance."
         else:
-            # Vérifier si c'est le premier joueur à trouver cette étape
-            if not step.first_discovered_at:
-                step.first_discovered_at = now
-                step.save()
-                points = 100
-                msg_success = "Bravo ! Vous êtes le premier à trouver cette étape ! (100 pts)"
-            else:
-                # Le score dépend du temps écoulé depuis la première découverte
-                delta = now - step.first_discovered_at
-                minutes_taken = delta.total_seconds() / 60.0
-                
-                # Formule : 100 pts au début, perte de points progressive
-                points = max(10, int(100 - (minutes_taken * 0.75)))
-                msg_success = f"Étape validée ! +{points} points. (Trouvée {int(minutes_taken)} min après le premier)"
+            # Score basé sur le temps personnel depuis l'indice précédent
+            delta = now - progress.updated_at
+            minutes_taken = delta.total_seconds() / 60.0
+            points = max(10, int(100 - minutes_taken * 2))  # Perte de 2 points par minute, min 10
+            msg_success = f"Étape validée ! +{points} points (temps perso : {int(minutes_taken)} min)."
         
         # 2. Enregistrer l'étape et les points
         PlayerStep.objects.create(
